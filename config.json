@@ -1,0 +1,12 @@
+{
+  "ip": "127.0.0.1",
+  "port": 12680,
+  "db_host": "127.0.0.1",
+  "db_port": 3306,
+  "db_user": "root",
+  "db_password": "root",
+  "db_name": "web",
+  "auto_reg": true,
+  "allow_ips": [],
+  "transfer_number": 1000
+}

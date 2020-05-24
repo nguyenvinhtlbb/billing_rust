@@ -1,0 +1,6 @@
+*.rs text eol=lf
+*.json text eol=lf
+Cargo.* text eol=lf
+
+# windows bat file
+*.bat text eol=crlf
