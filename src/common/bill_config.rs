@@ -10,7 +10,7 @@ pub struct BillConfig {
     ip: String,
     port: i32,
     db_host: String,
-    db_port: i32,
+    db_port: u16,
     db_user: String,
     db_password: String,
     db_name: String,
@@ -67,5 +67,29 @@ impl BillConfig {
         let file_content = fs::read_to_string(config_file_path).await?;
         let config_value = serde_json::from_str(&file_content)?;
         Ok(config_value)
+    }
+
+    pub fn listen_address(&self) -> String {
+        format!("{}:{}", self.ip, self.port)
+    }
+
+    pub fn db_host(&self) -> &str {
+        &self.db_host
+    }
+
+    pub fn db_port(&self) -> u16 {
+        self.db_port
+    }
+
+    pub fn db_name(&self) -> &str {
+        &self.db_name
+    }
+
+    pub fn db_user(&self) -> &str {
+        &self.db_user
+    }
+
+    pub fn db_password(&self) -> &str {
+        &self.db_password
     }
 }
