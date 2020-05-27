@@ -1,7 +1,11 @@
 use crate::common::{BillConfig, BillingHandler, ResponseError};
-use crate::handlers::{ConnectHandler, LoginHandler};
+use crate::handlers::{
+    ConnectHandler, KickHandler, LoginHandler, LogoutHandler, PingHandler, QueryPointHandler,
+    RegisterHandler,
+};
 use crate::services;
 use mysql_async::Pool;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
@@ -40,6 +44,16 @@ pub async fn run_server(server_config: BillConfig) {
     }
 }
 
+/// 添加handler的宏
+macro_rules! add_handler {
+    ($handler_map:ident,$($handler:expr ),*) => {
+        $(
+            let tmp_handler = Box::new($handler);
+            $handler_map.insert($handler.get_type(), tmp_handler);
+        )*
+    };
+}
+
 fn process_client_socket(
     mut socket: TcpStream,
     client_address: SocketAddr,
@@ -51,10 +65,18 @@ fn process_client_socket(
         println!("client {} connected", &client_address);
         let mut buf = [0; 1024];
         let mut client_data: Vec<u8> = vec![];
-        let handlers: Vec<Box<dyn BillingHandler>> = vec![
-            Box::new(ConnectHandler),
-            Box::new(LoginHandler::new(db_pool, auto_reg)),
-        ];
+        let mut handlers: HashMap<u8, Box<dyn BillingHandler>> = HashMap::new();
+        //向handlers Map中添加handler
+        add_handler!(
+            handlers,
+            ConnectHandler,
+            LoginHandler::new(db_pool.clone(), auto_reg),
+            LogoutHandler,
+            RegisterHandler::new(db_pool.clone()),
+            QueryPointHandler::new(db_pool.clone()),
+            KickHandler,
+            PingHandler
+        );
 
         // In a loop, read data from the socket and write the data back.
         loop {

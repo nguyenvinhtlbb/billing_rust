@@ -1,11 +1,12 @@
 use crate::common::{BillingData, BillingHandler, ParsePackError, ResponseError};
+use std::collections::HashMap;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
-pub async fn process_client_data(
+pub async fn process_client_data<S: std::hash::BuildHasher>(
     socket: &mut TcpStream,
     client_data: &mut Vec<u8>,
-    handlers: &[Box<dyn BillingHandler>],
+    handlers: &HashMap<u8, Box<dyn BillingHandler>, S>,
 ) -> Result<(), ResponseError> {
     loop {
         let (billing_data, full_pack_size) =
@@ -20,16 +21,13 @@ pub async fn process_client_data(
         *client_data = Vec::from(&new_slice[full_pack_size..]);
         //dbg!(&client_data);
         //dbg!(&billing_data);
-        for bill_handler in handlers.iter() {
-            if bill_handler.get_type() == billing_data.op_type {
-                let response = bill_handler.get_response(&billing_data).await?;
-                //dbg!(&response);
-                let response_bytes = response.pack_data();
-                //dbg!(&response_bytes);
-                if let Err(err) = socket.write_all(&response_bytes).await {
-                    return Err(ResponseError::WriteError(err));
-                }
-                break;
+        if let Some(bill_handler) = handlers.get(&billing_data.op_type) {
+            let response = bill_handler.get_response(&billing_data).await?;
+            //dbg!(&response);
+            let response_bytes = response.pack_data();
+            //dbg!(&response_bytes);
+            if let Err(err) = socket.write_all(&response_bytes).await {
+                return Err(ResponseError::WriteError(err));
             }
         }
     }

@@ -1,24 +1,23 @@
 use crate::common::{BillingData, BillingHandler, ResponseError};
-use crate::services::{get_login_result, read_buffer_slice};
+use crate::services::{get_register_result, read_buffer_slice};
 use async_trait::async_trait;
 use mysql_async::Pool;
 use std::str;
 
-pub struct LoginHandler {
+pub struct RegisterHandler {
     db_pool: Pool,
-    auto_reg: bool,
 }
 
-impl LoginHandler {
-    pub fn new(db_pool: Pool, auto_reg: bool) -> Self {
-        LoginHandler { db_pool, auto_reg }
+impl RegisterHandler {
+    pub fn new(db_pool: Pool) -> Self {
+        RegisterHandler { db_pool }
     }
 }
 
 #[async_trait]
-impl BillingHandler for LoginHandler {
+impl BillingHandler for RegisterHandler {
     fn get_type(&self) -> u8 {
-        0xA2
+        0xF1
     }
 
     async fn get_response(&self, request: &BillingData) -> Result<BillingData, ResponseError> {
@@ -26,37 +25,45 @@ impl BillingHandler for LoginHandler {
         let request_op_data = request.op_data.as_slice();
         //用户名
         let (username, offset) = read_buffer_slice(request_op_data, offset);
+        //超级密码
+        let (super_password, offset) = read_buffer_slice(request_op_data, offset);
         //密码
         let (password, offset) = read_buffer_slice(request_op_data, offset);
         //登录IP
-        let (login_ip, _) = read_buffer_slice(request_op_data, offset);
+        let (client_ip, offset) = read_buffer_slice(request_op_data, offset);
+        //email
+        let (email, _) = read_buffer_slice(request_op_data, offset);
         //
         let username_str = str::from_utf8(username).unwrap();
+        let email_str = str::from_utf8(email).unwrap();
         let password_str = str::from_utf8(password).unwrap();
-        let mut login_flag = match get_login_result(&self.db_pool, username_str, password_str).await
+        let super_password_str = str::from_utf8(super_password).unwrap();
+        let register_flag = match get_register_result(
+            &self.db_pool,
+            username_str,
+            password_str,
+            super_password_str,
+            email_str,
+        )
+        .await
         {
             Ok(value) => value,
             Err(err) => {
                 // 数据库异常
                 eprintln!("query error: {}", err);
-                6
+                4
             }
         };
-        // 未启用自动注册
-        if !self.auto_reg && login_flag == 9 {
-            // 密码错误
-            login_flag = 3;
-        }
-        let login_ip_str = str::from_utf8(login_ip).unwrap();
+        let client_ip_str = str::from_utf8(client_ip).unwrap();
         println!(
-            "user {} try to login from {} : {}",
-            username_str, login_ip_str, login_flag
+            "user {}({}) try to register from {} : {}",
+            username_str, email_str, client_ip_str, register_flag
         );
-        //todo 更新在线状态
+        //
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
         response.op_data.extend_from_slice(username);
-        response.op_data.push(login_flag);
+        response.op_data.push(register_flag);
         Ok(response)
     }
 }
