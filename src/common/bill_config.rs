@@ -92,4 +92,8 @@ impl BillConfig {
     pub fn db_password(&self) -> &str {
         &self.db_password
     }
+
+    pub fn auto_reg(&self) -> bool {
+        self.auto_reg
+    }
 }

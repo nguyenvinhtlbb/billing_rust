@@ -1,5 +1,5 @@
-use billing_rust::common::BillConfig;
 use billing_rust::cli;
+use billing_rust::common::BillConfig;
 use std::env;
 
 #[tokio::main]

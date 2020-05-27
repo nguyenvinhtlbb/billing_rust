@@ -1,7 +1,7 @@
 use super::ParsePackError;
 
 /// 数据包
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct BillingData {
     /// 类型
     pub op_type: u8,
@@ -12,7 +12,7 @@ pub struct BillingData {
 }
 
 impl BillingData {
-    pub fn read_from_client(client_data: &[u8]) -> Result<BillingData, ParsePackError> {
+    pub fn read_from_client(client_data: &[u8]) -> Result<(BillingData, usize), ParsePackError> {
         if client_data.is_empty() {
             return Err(ParsePackError::BillingDataNotFull);
         }
@@ -30,7 +30,8 @@ impl BillingData {
         }
         //负载数据长度(u2)
         // 负载数据长度需要减去一字节类型标识、两字节的id
-        let op_data_length = (client_data[2] as usize) << 8 + (client_data[3] as usize) - 3;
+        //dbg!(&client_data[2..=3]);
+        let op_data_length = ((client_data[2] as usize) << 8) + (client_data[3] as usize) - 3;
         // 数据包的总大小
         let pack_length = min_pack_size + op_data_length;
         if binary_data_length < pack_length {
@@ -38,7 +39,9 @@ impl BillingData {
             return Err(ParsePackError::BillingDataNotFull);
         }
         //检测标识尾部
-        if !(client_data[pack_length - 2] == mask_data[1] && client_data[pack_length - 1] == mask_data[0]) {
+        if !(client_data[pack_length - 2] == mask_data[1]
+            && client_data[pack_length - 1] == mask_data[0])
+        {
             // 尾部数据错误
             return Err(ParsePackError::BillingDataError);
         }
@@ -53,10 +56,38 @@ impl BillingData {
             pack_data.op_data = Vec::from(&client_data[7..7 + op_data_length]);
         }
         ////
-        Ok(pack_data)
+        Ok((pack_data, op_data_length + min_pack_size))
     }
 
-    pub fn len(&self) -> usize {
-        self.op_data.len() + 9
+    pub fn pack_data(&self) -> Vec<u8> {
+        let mut result = Vec::with_capacity(self.op_data.len() + 9);
+        let mask_data: [u8; 2] = [0xAA, 0x55];
+        //头部字节
+        result.extend_from_slice(&mask_data);
+        //长度高位
+        let length_p = (3 + self.op_data.len()) as u16;
+        let tmp_data = (length_p >> 8) as u8;
+        result.push(tmp_data);
+        //长度低位
+        let tmp_data = (length_p & 0xff) as u8;
+        result.push(tmp_data);
+        // append data
+        result.push(self.op_type);
+        result.extend_from_slice(&self.msg_id);
+        if length_p > 3 {
+            result.extend_from_slice(self.op_data.as_slice());
+        }
+        result.push(mask_data[1]);
+        result.push(mask_data[0]);
+        result
+    }
+}
+
+impl From<&BillingData> for BillingData {
+    fn from(request: &BillingData) -> Self {
+        let mut response = Self::default();
+        response.op_type = request.op_type;
+        response.msg_id = request.msg_id;
+        response
     }
 }

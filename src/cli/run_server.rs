@@ -1,8 +1,10 @@
-use crate::common::BillConfig;
+use crate::common::{BillConfig, BillingHandler, ResponseError};
+use crate::handlers::{ConnectHandler, LoginHandler};
 use crate::services;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use mysql_async::Pool;
 use std::net::SocketAddr;
+use tokio::io::AsyncReadExt;
+use tokio::net::{TcpListener, TcpStream};
 
 /// 运行服务器
 pub async fn run_server(server_config: BillConfig) {
@@ -10,9 +12,7 @@ pub async fn run_server(server_config: BillConfig) {
     //连接数据库
     let db_pool = services::create_db_pool(&server_config);
     match services::get_db_version(&db_pool).await {
-        Ok(value) => {
-            println!("mysql version: {}", value)
-        }
+        Ok(value) => println!("mysql version: {}", value),
         Err(err) => {
             eprintln!("Database Error: {}", err);
             return;
@@ -36,15 +36,25 @@ pub async fn run_server(server_config: BillConfig) {
                 continue;
             }
         };
-        process_client_socket(socket, addr);
+        process_client_socket(socket, addr, db_pool.clone(), &server_config);
     }
 }
 
-fn process_client_socket(mut socket: TcpStream, client_address: SocketAddr) {
+fn process_client_socket(
+    mut socket: TcpStream,
+    client_address: SocketAddr,
+    db_pool: Pool,
+    server_config: &BillConfig,
+) {
+    let auto_reg = server_config.auto_reg();
     tokio::spawn(async move {
         println!("client {} connected", &client_address);
         let mut buf = [0; 1024];
         let mut client_data: Vec<u8> = vec![];
+        let handlers: Vec<Box<dyn BillingHandler>> = vec![
+            Box::new(ConnectHandler),
+            Box::new(LoginHandler::new(db_pool, auto_reg)),
+        ];
 
         // In a loop, read data from the socket and write the data back.
         loop {
@@ -63,9 +73,18 @@ fn process_client_socket(mut socket: TcpStream, client_address: SocketAddr) {
                 }
             };
             client_data.extend_from_slice(&buf[..n]);
-            dbg!(&client_data);
-            if let Err(err) = services::process_client_data(&mut socket, &mut client_data).await {
-                eprintln!("failed to write to socket; err = {:?}", err);
+            if let Err(err) =
+                services::process_client_data(&mut socket, &mut client_data, &handlers).await
+            {
+                let message = match err {
+                    ResponseError::WriteError(err) => {
+                        format!("failed to write to socket; err = {}", err)
+                    }
+                    ResponseError::PackError => "invalid pack data".to_string(),
+                    ResponseError::DatabaseError(err) => format!("database error: {}", err),
+                };
+                eprintln!("{}", message);
+                //eprintln!("failed to write to socket; err = {:?}", err);
                 return;
             }
             // Write the data back
