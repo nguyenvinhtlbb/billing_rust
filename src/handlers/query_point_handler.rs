@@ -1,8 +1,7 @@
 use crate::common::{BillingData, BillingHandler, ResponseError};
 use crate::models::Account;
-use crate::services::read_buffer_slice;
+use crate::services::{decode_role_name, read_buffer_slice};
 use async_trait::async_trait;
-use encoding_rs::GBK;
 use mysql_async::Pool;
 use std::str;
 
@@ -39,7 +38,7 @@ impl BillingHandler for QueryPointHandler {
             Some(account_info) => account_info.point(),
             None => 0,
         };
-        let (role_name_str, _, _) = GBK.decode(role_nickname);
+        let role_name_str = decode_role_name(role_nickname);
         println!(
             "user [{}] {:?} query point ({}) at {}",
             username_str, &role_name_str, point_value, client_ip_str

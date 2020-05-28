@@ -12,6 +12,7 @@ pub struct BillingData {
 }
 
 impl BillingData {
+    /// 读取字节slice,返回读到的数据包和数据包总长度
     pub fn read_from_client(client_data: &[u8]) -> Result<(BillingData, usize), ParsePackError> {
         if client_data.is_empty() {
             return Err(ParsePackError::BillingDataNotFull);
@@ -59,6 +60,7 @@ impl BillingData {
         Ok((pack_data, op_data_length + min_pack_size))
     }
 
+    /// 将数据包打包为字节Vec
     pub fn pack_data(&self) -> Vec<u8> {
         let mut result = Vec::with_capacity(self.op_data.len() + 9);
         let mask_data: [u8; 2] = [0xAA, 0x55];

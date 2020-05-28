@@ -1,5 +1,3 @@
-use mysql_async::error::Error;
-
 /// 表示处理用户发送的数据发生错误
 #[derive(Debug)]
 pub enum ResponseError {
@@ -12,7 +10,13 @@ pub enum ResponseError {
 }
 
 impl From<mysql_async::error::Error> for ResponseError {
-    fn from(err: Error) -> Self {
+    fn from(err: mysql_async::error::Error) -> Self {
         ResponseError::DatabaseError(err)
+    }
+}
+
+impl From<tokio::io::Error> for ResponseError {
+    fn from(err: tokio::io::Error) -> Self {
+        ResponseError::WriteError(err)
     }
 }

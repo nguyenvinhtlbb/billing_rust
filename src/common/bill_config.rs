@@ -96,4 +96,8 @@ impl BillConfig {
     pub fn auto_reg(&self) -> bool {
         self.auto_reg
     }
+
+    pub fn transfer_number(&self) -> i32 {
+        self.transfer_number
+    }
 }

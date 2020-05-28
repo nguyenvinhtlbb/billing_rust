@@ -64,13 +64,13 @@ impl Account {
     }
 
     pub async fn convert_point(
-        &self,
+        username: &str,
         db_pool: &Pool,
         point: i32,
     ) -> Result<(), mysql_async::error::Error> {
         let conn = db_pool.get_conn().await?;
         let params = params! {
-            "name" => &self.name,
+            "name" => username,
             "point" => point
         };
         conn.batch_exec(

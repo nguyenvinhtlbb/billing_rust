@@ -27,9 +27,12 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
             //dbg!(&response);
             let response_bytes = response.pack_data();
             //dbg!(&response_bytes);
-            if let Err(err) = socket.write_all(&response_bytes).await {
-                return Err(ResponseError::WriteError(err));
-            }
+            socket.write_all(&response_bytes).await?;
+        } else {
+            eprintln!(
+                "unknown billing data (op_type={:#04X}) :{:?}",
+                billing_data.op_type, &billing_data
+            )
         }
     }
     Ok(())

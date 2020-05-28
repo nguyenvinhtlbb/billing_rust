@@ -1,7 +1,8 @@
 use crate::common::{BillConfig, BillingHandler, ResponseError};
 use crate::handlers::{
-    CloseHandler, ConnectHandler, KickHandler, LoginHandler, LogoutHandler, PingHandler,
-    QueryPointHandler, RegisterHandler,
+    CloseHandler, ConnectHandler, ConvertPointHandler, CostLogHandler, EnterGameHandler,
+    KeepHandler, KickHandler, LoginHandler, LogoutHandler, PingHandler, QueryPointHandler,
+    RegisterHandler,
 };
 use crate::services;
 use mysql_async::Pool;
@@ -56,6 +57,7 @@ macro_rules! add_handler {
     ($handler_map:ident,$($handler:expr ),*) => {
         $(
             let tmp_handler = Box::new($handler);
+            //println!("op_type={:#04X}", $handler.get_type());
             $handler_map.insert($handler.get_type(), tmp_handler);
         )*
     };
@@ -109,6 +111,7 @@ fn process_client_socket(
     stopped_flag: Arc<Mutex<bool>>,
 ) {
     let auto_reg = server_config.auto_reg();
+    let convert_number = server_config.transfer_number();
     tokio::spawn(async move {
         println!("client {} connected", &client_address);
         let mut buf = [0; 1024];
@@ -117,16 +120,19 @@ fn process_client_socket(
         //向handlers Map中添加handler
         add_handler!(
             handlers,
-            ConnectHandler,
             CloseHandler::new(tx.clone(), stopped_flag.clone()),
+            ConnectHandler,
+            PingHandler,
+            KeepHandler,
             LoginHandler::new(db_pool.clone(), auto_reg),
-            LogoutHandler,
             RegisterHandler::new(db_pool.clone()),
-            QueryPointHandler::new(db_pool.clone()),
+            EnterGameHandler,
+            LogoutHandler,
             KickHandler,
-            PingHandler
+            QueryPointHandler::new(db_pool.clone()),
+            ConvertPointHandler::new(db_pool.clone(), convert_number),
+            CostLogHandler
         );
-
         // In a loop, read data from the socket and write the data back.
         loop {
             let n = match socket.read(&mut buf).await {
