@@ -1,3 +1,4 @@
+/// 读取字符串返回读到的字节slice和新的offset
 pub fn read_buffer_slice(buffer: &[u8], offset: usize) -> (&[u8], usize) {
     let mut new_offset = offset;
     let tmp_length = buffer[offset] as usize;

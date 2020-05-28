@@ -1,6 +1,7 @@
 use crate::models::Account;
 use mysql_async::Pool;
 
+/// 获取登录结果
 pub async fn get_login_result(
     db_pool: &Pool,
     username: &str,

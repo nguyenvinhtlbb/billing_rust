@@ -18,7 +18,7 @@ async fn main() {
     if cli_args.len() > 1 {
         let command_str = cli_args.get(1).unwrap();
         if command_str == "stop" {
-            //do stop
+            cli::stop_server(server_config).await;
             return;
         }
     }

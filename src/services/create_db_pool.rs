@@ -1,6 +1,7 @@
 use crate::common::BillConfig;
 use mysql_async::{OptsBuilder, Pool};
 
+/// 创建数据库连接池
 pub fn create_db_pool(server_config: &BillConfig) -> Pool {
     let mut builder = OptsBuilder::new();
     builder

@@ -1,3 +1,4 @@
+//! 功能函数
 mod create_db_pool;
 mod get_db_version;
 mod get_login_result;

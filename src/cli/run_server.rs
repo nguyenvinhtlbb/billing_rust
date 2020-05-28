@@ -1,14 +1,18 @@
 use crate::common::{BillConfig, BillingHandler, ResponseError};
 use crate::handlers::{
-    ConnectHandler, KickHandler, LoginHandler, LogoutHandler, PingHandler, QueryPointHandler,
-    RegisterHandler,
+    CloseHandler, ConnectHandler, KickHandler, LoginHandler, LogoutHandler, PingHandler,
+    QueryPointHandler, RegisterHandler,
 };
 use crate::services;
 use mysql_async::Pool;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::select;
+use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::Mutex;
 
 /// 运行服务器
 pub async fn run_server(server_config: BillConfig) {
@@ -32,15 +36,18 @@ pub async fn run_server(server_config: BillConfig) {
         }
     };
     println!("server run at {}", &listen_address);
-    loop {
-        let (socket, addr) = match listener.accept().await {
-            Ok(value) => value,
-            Err(err) => {
-                eprintln!("accept client error: {}", err);
-                continue;
+    let (tx, rx) = mpsc::channel::<u8>(1);
+    select! {
+        _ = process_listener(&mut listener,&db_pool,&server_config,tx) => {
+            println!("listener stopped");
+        }
+        value = shutdown_signal(rx) => {
+            match value{
+                1 => println!("billing server stopped(by signal)"),
+                2 => println!("billing server stopped(by stop command)"),
+                _ => println!("unknown way"),
             }
-        };
-        process_client_socket(socket, addr, db_pool.clone(), &server_config);
+        }
     }
 }
 
@@ -54,11 +61,52 @@ macro_rules! add_handler {
     };
 }
 
+async fn shutdown_signal(mut rx: Receiver<u8>) -> i32 {
+    select! {
+        // Wait for the CTRL+C signal
+         _ = tokio::signal::ctrl_c() => {
+            1
+         }
+         // Wait for stop command
+        _ = rx.recv() => {
+            2
+        }
+    }
+}
+
+async fn process_listener(
+    listener: &mut TcpListener,
+    db_pool: &Pool,
+    server_config: &BillConfig,
+    tx: Sender<u8>,
+) {
+    let stopped_flag = Arc::new(Mutex::new(false));
+    loop {
+        let (socket, addr) = match listener.accept().await {
+            Ok(value) => value,
+            Err(err) => {
+                eprintln!("accept client error: {}", err);
+                continue;
+            }
+        };
+        process_client_socket(
+            socket,
+            addr,
+            db_pool.clone(),
+            &server_config,
+            tx.clone(),
+            stopped_flag.clone(),
+        );
+    }
+}
+
 fn process_client_socket(
     mut socket: TcpStream,
     client_address: SocketAddr,
     db_pool: Pool,
     server_config: &BillConfig,
+    tx: Sender<u8>,
+    stopped_flag: Arc<Mutex<bool>>,
 ) {
     let auto_reg = server_config.auto_reg();
     tokio::spawn(async move {
@@ -70,6 +118,7 @@ fn process_client_socket(
         add_handler!(
             handlers,
             ConnectHandler,
+            CloseHandler::new(tx.clone(), stopped_flag.clone()),
             LoginHandler::new(db_pool.clone(), auto_reg),
             LogoutHandler,
             RegisterHandler::new(db_pool.clone()),
@@ -90,7 +139,10 @@ fn process_client_socket(
                     n
                 }
                 Err(e) => {
-                    eprintln!("failed to read from socket; err = {:?}", e);
+                    let stopped_flag_guard = stopped_flag.lock().await;
+                    if !*stopped_flag_guard {
+                        eprintln!("failed to read from socket; err = {:?}", e);
+                    }
                     return;
                 }
             };

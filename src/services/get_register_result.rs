@@ -1,6 +1,7 @@
 use crate::models::Account;
 use mysql_async::Pool;
 
+/// 获取注册结果
 pub async fn get_register_result(
     db_pool: &Pool,
     username: &str,

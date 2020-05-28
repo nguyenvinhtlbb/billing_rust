@@ -1,3 +1,4 @@
+//! 常用数据结构
 mod bill_config;
 mod bill_config_error;
 mod billing_data;

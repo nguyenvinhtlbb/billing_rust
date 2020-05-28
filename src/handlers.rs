@@ -1,3 +1,5 @@
+//! billing包的handlers
+mod close_handler;
 mod connect_handler;
 mod kick_handler;
 mod login_handler;
@@ -6,6 +8,7 @@ mod ping_handler;
 mod query_point_handler;
 mod register_handler;
 
+pub use close_handler::CloseHandler;
 pub use connect_handler::ConnectHandler;
 pub use kick_handler::KickHandler;
 pub use login_handler::LoginHandler;

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
+/// 当读取到TCP数据后的处理
 pub async fn process_client_data<S: std::hash::BuildHasher>(
     socket: &mut TcpStream,
     client_data: &mut Vec<u8>,
