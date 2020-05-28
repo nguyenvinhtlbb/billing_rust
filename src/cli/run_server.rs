@@ -123,15 +123,15 @@ fn process_client_socket(
             CloseHandler::new(tx.clone(), stopped_flag.clone()),
             ConnectHandler,
             PingHandler,
-            KeepHandler,
             LoginHandler::new(db_pool.clone(), auto_reg),
-            RegisterHandler::new(db_pool.clone()),
             EnterGameHandler,
             LogoutHandler,
+            KeepHandler,
             KickHandler,
-            QueryPointHandler::new(db_pool.clone()),
+            CostLogHandler,
             ConvertPointHandler::new(db_pool.clone(), convert_number),
-            CostLogHandler
+            QueryPointHandler::new(db_pool.clone()),
+            RegisterHandler::new(db_pool.clone())
         );
         // In a loop, read data from the socket and write the data back.
         loop {

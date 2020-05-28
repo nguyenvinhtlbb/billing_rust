@@ -21,7 +21,9 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
         let new_slice = client_data.as_slice();
         *client_data = Vec::from(&new_slice[full_pack_size..]);
         //dbg!(&client_data);
-        //dbg!(&billing_data);
+        if billing_data.op_type != 0xA1 {
+            dbg!(&billing_data);
+        }
         if let Some(bill_handler) = handlers.get(&billing_data.op_type) {
             let response = bill_handler.get_response(&billing_data).await?;
             //dbg!(&response);

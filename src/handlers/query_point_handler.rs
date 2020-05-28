@@ -40,7 +40,7 @@ impl BillingHandler for QueryPointHandler {
         };
         let role_name_str = decode_role_name(role_nickname);
         println!(
-            "user [{}] {:?} query point ({}) at {}",
+            "user [{}] {} query point ({}) at {}",
             username_str, &role_name_str, point_value, client_ip_str
         );
         //

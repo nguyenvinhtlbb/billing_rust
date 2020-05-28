@@ -1,7 +1,8 @@
 use super::ParsePackError;
+use std::fmt::{self, Debug, Formatter};
 
 /// 数据包
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct BillingData {
     /// 类型
     pub op_type: u8,
@@ -91,5 +92,41 @@ impl From<&BillingData> for BillingData {
         response.op_type = request.op_type;
         response.msg_id = request.msg_id;
         response
+    }
+}
+
+impl Debug for BillingData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let op_type_text = match self.op_type {
+            0 => "Close",
+            0xA0 => "Connect",
+            0xA1 => "Ping",
+            0xA2 => "Login",
+            0xA3 => "EnterGame",
+            0xA4 => "Logout",
+            0xA6 => "Keep",
+            0xA9 => "Kick",
+            0xC5 => "CostLog",
+            0xE1 => "ConvertPoint",
+            0xE2 => "QueryPoint",
+            0xF1 => "Register",
+            _ => "Unknown",
+        };
+        let op_data: Vec<String> = self
+            .op_data
+            .iter()
+            .map(|value| format!("{:02X}", value))
+            .collect();
+        let op_data = op_data.join(", ");
+        let msg_id = format!("{:02X} {:02X}", self.msg_id[0], self.msg_id[1]);
+        write!(
+            f,
+            "BillingData{{\n\
+        \top_type: {:#04X}({}),\n\
+        \tmsg_id: {},\n\
+        \top_data: {}\n\
+        }}",
+            self.op_type, op_type_text, msg_id, op_data
+        )
     }
 }

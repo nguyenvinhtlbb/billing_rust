@@ -15,7 +15,7 @@ impl BillingHandler for EnterGameHandler {
         let offset = 0;
         let request_op_data = request.op_data.as_slice();
         //用户名
-        let (username, _) = read_buffer_slice(request_op_data, offset);
+        let (username, offset) = read_buffer_slice(request_op_data, offset);
         let username_str = str::from_utf8(username).unwrap();
         //角色名
         let (role_nickname, _) = read_buffer_slice(request_op_data, offset);

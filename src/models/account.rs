@@ -59,7 +59,7 @@ impl Account {
             "question" => &account_info.question,
             "email" => &account_info.email
         };
-        conn.batch_exec("INSERT INTO account (name, password, question, email) VALUES (:name, :password, :question, :email)", params).await?;
+        conn.drop_exec("INSERT INTO account (name, password, question, email) VALUES (:name, :password, :question, :email)", params).await?;
         Ok(())
     }
 
@@ -73,11 +73,12 @@ impl Account {
             "name" => username,
             "point" => point
         };
-        conn.batch_exec(
+        conn.drop_exec(
             "UPDATE account SET point=point-:point WHERE name=:name",
             params,
         )
         .await?;
+
         Ok(())
     }
 

@@ -56,7 +56,7 @@ impl BillingHandler for ConvertPointHandler {
             let mut result_value = 0;
             for i in 0..4 {
                 result_value += if i < 3 {
-                    (request_op_data[offset + i] as i32) << (8 * (3 - i))
+                    (request_op_data[offset + i] as i32) << (8 * (3 - i)) as i32
                 } else {
                     request_op_data[offset + i] as i32
                 };
@@ -86,11 +86,11 @@ impl BillingHandler for ConvertPointHandler {
         } else {
             user_point_value
         };
-        let result_point = min(need_point, user_point_value);
+        let cost_point = min(need_point, user_point_value);
         // 执行兑换
-        let result_point =
-            match Account::convert_point(username_str, &self.db_pool, result_point).await {
-                Ok(_) => result_point,
+        let cost_point =
+            match Account::convert_point(username_str, &self.db_pool, cost_point).await {
+                Ok(_) => cost_point,
                 Err(err) => {
                     eprintln!("account {} convert point error {}", username_str, err);
                     0
@@ -105,8 +105,8 @@ impl BillingHandler for ConvertPointHandler {
             user_point_value,
             need_point,
             user_point_value,
-            need_point,
-            result_point
+            cost_point,
+            user_point_value - cost_point
         );
         //
         let mut response: BillingData = request.into();
@@ -117,9 +117,9 @@ impl BillingHandler for ConvertPointHandler {
             .op_data
             .extend_from_slice(&[0x00, 0x00, 0x00, 0x03, 0xE8]);
         response.op_data.extend_from_slice(extra_data_bytes);
-        let tmp_data = ((result_point & 0xff00) >> 8) as u8;
+        let tmp_data = ((cost_point & 0xff00) >> 8) as u8;
         response.op_data.push(tmp_data);
-        let tmp_data = (result_point & 0xff) as u8;
+        let tmp_data = (cost_point & 0xff) as u8;
         response.op_data.push(tmp_data);
         Ok(response)
     }
