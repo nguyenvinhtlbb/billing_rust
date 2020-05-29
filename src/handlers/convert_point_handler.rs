@@ -1,4 +1,4 @@
-use crate::common::{BillingData, BillingHandler, ResponseError};
+use crate::common::{AuthUser, AuthUsersCollection, BillingData, BillingHandler, ResponseError};
 use crate::models::Account;
 use crate::services::{decode_role_name, read_buffer_slice};
 use async_trait::async_trait;
@@ -9,13 +9,19 @@ use std::str;
 pub struct ConvertPointHandler {
     db_pool: Pool,
     convert_number: i32,
+    auth_users_collection: AuthUsersCollection,
 }
 
 impl ConvertPointHandler {
-    pub fn new(db_pool: Pool, convert_number: i32) -> Self {
+    pub fn new(
+        db_pool: Pool,
+        convert_number: i32,
+        auth_users_collection: AuthUsersCollection,
+    ) -> Self {
         ConvertPointHandler {
             db_pool,
             convert_number,
+            auth_users_collection,
         }
     }
 }
@@ -56,7 +62,7 @@ impl BillingHandler for ConvertPointHandler {
             let mut result_value = 0;
             for i in 0..4 {
                 result_value += if i < 3 {
-                    (request_op_data[offset + i] as i32) << (8 * (3 - i)) as i32
+                    (request_op_data[offset + i] as i32) << ((8 * (3 - i)) as i32)
                 } else {
                     request_op_data[offset + i] as i32
                 };
@@ -88,14 +94,17 @@ impl BillingHandler for ConvertPointHandler {
         };
         let cost_point = min(need_point, user_point_value);
         // 执行兑换
-        let cost_point =
-            match Account::convert_point(username_str, &self.db_pool, cost_point).await {
-                Ok(_) => cost_point,
-                Err(err) => {
-                    eprintln!("account {} convert point error {}", username_str, err);
-                    0
-                }
-            };
+        let cost_point = match Account::convert_point(username_str, &self.db_pool, cost_point).await
+        {
+            Ok(_) => cost_point,
+            Err(err) => {
+                eprintln!("account {} convert point error {}", username_str, err);
+                0
+            }
+        };
+        //更新用户在线状态
+        let auth_users_guard = self.auth_users_collection.write().await;
+        AuthUser::set_auth_user(auth_users_guard, username_str, true);
         let client_ip_str = str::from_utf8(client_ip).unwrap();
         println!(
             "user [{}] {}(ip: {}) point total [{}], need point [{}]: {}-{}={}",

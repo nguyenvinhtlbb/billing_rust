@@ -55,9 +55,14 @@ impl BillingHandler for RegisterHandler {
             }
         };
         let client_ip_str = str::from_utf8(client_ip).unwrap();
+        let register_flag_str = if register_flag == 1 {
+            "success"
+        } else {
+            "error"
+        };
         println!(
             "user {}({}) try to register from {} : {}",
-            username_str, email_str, client_ip_str, register_flag
+            username_str, email_str, client_ip_str, register_flag_str
         );
         //
         let mut response: BillingData = request.into();

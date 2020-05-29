@@ -1,4 +1,5 @@
 //! 常用数据结构
+mod auth_user;
 mod bill_config;
 mod bill_config_error;
 mod billing_data;
@@ -6,6 +7,8 @@ mod billing_handler;
 mod parse_pack_error;
 mod response_error;
 
+pub use auth_user::AuthUser;
+pub use auth_user::AuthUsersCollection;
 pub use bill_config::BillConfig;
 pub use bill_config_error::BillConfigError;
 pub use billing_data::BillingData;

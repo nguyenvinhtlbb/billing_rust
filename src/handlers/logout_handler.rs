@@ -1,9 +1,19 @@
-use crate::common::{BillingData, BillingHandler, ResponseError};
+use crate::common::{AuthUser, AuthUsersCollection, BillingData, BillingHandler, ResponseError};
 use crate::services::read_buffer_slice;
 use async_trait::async_trait;
 use std::str;
 
-pub struct LogoutHandler;
+pub struct LogoutHandler {
+    auth_users_collection: AuthUsersCollection,
+}
+
+impl LogoutHandler {
+    pub fn new(auth_users_collection: AuthUsersCollection) -> Self {
+        LogoutHandler {
+            auth_users_collection,
+        }
+    }
+}
 
 #[async_trait]
 impl BillingHandler for LogoutHandler {
@@ -17,8 +27,10 @@ impl BillingHandler for LogoutHandler {
         //用户名
         let (username, _) = read_buffer_slice(request_op_data, offset);
         let username_str = str::from_utf8(username).unwrap();
+        //更新在线状态
+        let auth_users_guard = self.auth_users_collection.write().await;
+        AuthUser::remove_user(auth_users_guard, username_str);
         println!("user {} logout game", username_str);
-        //todo 更新在线状态
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
         response.op_data.extend_from_slice(username);

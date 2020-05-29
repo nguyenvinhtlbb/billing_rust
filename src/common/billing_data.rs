@@ -117,16 +117,24 @@ impl Debug for BillingData {
             .iter()
             .map(|value| format!("{:02X}", value))
             .collect();
-        let op_data = op_data.join(", ");
+        let op_data_length = op_data.len();
+        let op_data = op_data.join(" ");
         let msg_id = format!("{:02X} {:02X}", self.msg_id[0], self.msg_id[1]);
+        let raw_pack: Vec<String> = self
+            .pack_data()
+            .iter()
+            .map(|value| format!("{:02X}", value))
+            .collect();
+        let raw_pack = raw_pack.join(" ");
         write!(
             f,
             "BillingData{{\n\
         \top_type: {:#04X}({}),\n\
-        \tmsg_id: {},\n\
-        \top_data: {}\n\
-        }}",
-            self.op_type, op_type_text, msg_id, op_data
+        \tmsg_id: [{}],\n\
+        \top_data: ({}bytes)[{}]\n\
+        }}\n\
+        #raw: [{}]",
+            self.op_type, op_type_text, msg_id, op_data_length, op_data, raw_pack
         )
     }
 }

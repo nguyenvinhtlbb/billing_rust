@@ -1,4 +1,4 @@
-use crate::common::{BillConfig, BillingHandler, ResponseError};
+use crate::common::{AuthUsersCollection, BillConfig, BillingHandler, ResponseError};
 use crate::handlers::{
     CloseHandler, ConnectHandler, ConvertPointHandler, CostLogHandler, EnterGameHandler,
     KeepHandler, KickHandler, LoginHandler, LogoutHandler, PingHandler, QueryPointHandler,
@@ -13,7 +13,7 @@ use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::select;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 /// 运行服务器
 pub async fn run_server(server_config: BillConfig) {
@@ -82,7 +82,7 @@ async fn process_listener(
     server_config: &BillConfig,
     tx: Sender<u8>,
 ) {
-    let stopped_flag = Arc::new(Mutex::new(false));
+    let stopped_flag = Arc::new(RwLock::new(false));
     loop {
         let (socket, addr) = match listener.accept().await {
             Ok(value) => value,
@@ -108,10 +108,12 @@ fn process_client_socket(
     db_pool: Pool,
     server_config: &BillConfig,
     tx: Sender<u8>,
-    stopped_flag: Arc<Mutex<bool>>,
+    stopped_flag: Arc<RwLock<bool>>,
 ) {
     let auto_reg = server_config.auto_reg();
     let convert_number = server_config.transfer_number();
+    //在线的用户 Map: user_name => AuthUser
+    let auth_users_collection = AuthUsersCollection::new(RwLock::new(HashMap::new()));
     tokio::spawn(async move {
         println!("client {} connected", &client_address);
         let mut buf = [0; 1024];
@@ -123,17 +125,21 @@ fn process_client_socket(
             CloseHandler::new(tx.clone(), stopped_flag.clone()),
             ConnectHandler,
             PingHandler,
-            LoginHandler::new(db_pool.clone(), auto_reg),
-            EnterGameHandler,
-            LogoutHandler,
-            KeepHandler,
+            LoginHandler::new(db_pool.clone(), auto_reg, auth_users_collection.clone()),
+            EnterGameHandler::new(auth_users_collection.clone()),
+            LogoutHandler::new(auth_users_collection.clone()),
+            KeepHandler::new(auth_users_collection.clone()),
             KickHandler,
             CostLogHandler,
-            ConvertPointHandler::new(db_pool.clone(), convert_number),
-            QueryPointHandler::new(db_pool.clone()),
+            ConvertPointHandler::new(
+                db_pool.clone(),
+                convert_number,
+                auth_users_collection.clone()
+            ),
+            QueryPointHandler::new(db_pool.clone(), auth_users_collection.clone()),
             RegisterHandler::new(db_pool.clone())
         );
-        // In a loop, read data from the socket and write the data back.
+        // In a loop, read data from the client
         loop {
             let n = match socket.read(&mut buf).await {
                 // socket closed
@@ -145,14 +151,16 @@ fn process_client_socket(
                     n
                 }
                 Err(e) => {
-                    let stopped_flag_guard = stopped_flag.lock().await;
+                    let stopped_flag_guard = stopped_flag.read().await;
                     if !*stopped_flag_guard {
                         eprintln!("failed to read from socket; err = {:?}", e);
                     }
                     return;
                 }
             };
+            //将读取到数据附加到client_data后面
             client_data.extend_from_slice(&buf[..n]);
+            //处理读取到的数据,如果出现错误则直接返回(断开连接)
             if let Err(err) =
                 services::process_client_data(&mut socket, &mut client_data, &handlers).await
             {
@@ -164,14 +172,8 @@ fn process_client_socket(
                     ResponseError::DatabaseError(err) => format!("database error: {}", err),
                 };
                 eprintln!("{}", message);
-                //eprintln!("failed to write to socket; err = {:?}", err);
                 return;
             }
-            // Write the data back
-            /*if let Err(e) = socket.write_all(&buf[0..n]).await {
-                eprintln!("failed to write to socket; err = {:?}", e);
-                return;
-            }*/
         }
     });
 }

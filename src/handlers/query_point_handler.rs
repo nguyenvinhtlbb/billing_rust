@@ -1,4 +1,4 @@
-use crate::common::{BillingData, BillingHandler, ResponseError};
+use crate::common::{AuthUser, AuthUsersCollection, BillingData, BillingHandler, ResponseError};
 use crate::models::Account;
 use crate::services::{decode_role_name, read_buffer_slice};
 use async_trait::async_trait;
@@ -7,11 +7,15 @@ use std::str;
 
 pub struct QueryPointHandler {
     db_pool: Pool,
+    auth_users_collection: AuthUsersCollection,
 }
 
 impl QueryPointHandler {
-    pub fn new(db_pool: Pool) -> Self {
-        QueryPointHandler { db_pool }
+    pub fn new(db_pool: Pool, auth_users_collection: AuthUsersCollection) -> Self {
+        QueryPointHandler {
+            db_pool,
+            auth_users_collection,
+        }
     }
 }
 
@@ -29,7 +33,7 @@ impl BillingHandler for QueryPointHandler {
         //登录IP
         let (client_ip, offset) = read_buffer_slice(request_op_data, offset);
         //角色名
-        let (role_nickname, _) = read_buffer_slice(request_op_data, offset);
+        let (role_nickname, _offset) = read_buffer_slice(request_op_data, offset);
         //
         let username_str = str::from_utf8(username).unwrap();
         let client_ip_str = str::from_utf8(client_ip).unwrap();
@@ -38,6 +42,9 @@ impl BillingHandler for QueryPointHandler {
             Some(account_info) => account_info.point(),
             None => 0,
         };
+        //更新用户在线状态
+        let auth_users_guard = self.auth_users_collection.write().await;
+        AuthUser::set_auth_user(auth_users_guard, username_str, true);
         let role_name_str = decode_role_name(role_nickname);
         println!(
             "user [{}] {} query point ({}) at {}",
@@ -47,6 +54,8 @@ impl BillingHandler for QueryPointHandler {
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
         response.op_data.extend_from_slice(username);
+        //返回值的处理
+        let point_value = (point_value + 1) * 1000;
         //将point值拆分为4个u8
         for i in 0..4 {
             let tmp_value = if i < 3 {
