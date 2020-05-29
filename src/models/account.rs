@@ -1,6 +1,6 @@
-use mysql_async::params;
 use mysql_async::prelude::Queryable;
-use mysql_async::{Pool, Stmt};
+use mysql_async::Pool;
+use mysql_async::{params, Row};
 
 /// 用户账号模型
 #[derive(Debug, Default)]
@@ -12,7 +12,19 @@ pub struct Account {
     answer: Option<String>,
     email: Option<String>,
     qq: Option<String>,
+    id_card: Option<String>,
     point: i32,
+}
+
+macro_rules! account_from_row {
+    ($row:ident,$($field_name:ident),*) => {
+        Account{
+        $(
+            //id: row.get("id").unwrap(),
+            $field_name:$row.get(stringify!($field_name)).unwrap(),
+        )*
+        }
+    };
 }
 
 impl Account {
@@ -21,31 +33,22 @@ impl Account {
         username: &str,
     ) -> Result<Option<Account>, mysql_async::error::Error> {
         let conn = db_pool.get_conn().await?;
-        let stm: Stmt<_> = conn
-            .prepare("SELECT * FROM account WHERE name=:name")
+        let (_, query_result) = conn
+            .first_exec::<_, _, Row>(
+                "SELECT * FROM account WHERE name=:name",
+                params! {
+                    "name" => username
+                },
+            )
             .await?;
-        let query_result = stm
-            .execute(params! {
-                "name" => username
-            })
-            .await?;
-        if query_result.is_empty() {
-            return Ok(None);
-        }
-        let (_, mut rows) = query_result
-            .map(|row| Account {
-                id: row.get("id").unwrap(),
-                name: row.get("name").unwrap(),
-                password: row.get("password").unwrap(),
-                question: row.get("question").unwrap(),
-                answer: row.get("answer").unwrap(),
-                email: row.get("email").unwrap(),
-                qq: row.get("qq").unwrap(),
-                point: row.get("point").unwrap(),
-            })
-            .await?;
-        let account_info = rows.pop();
-        Ok(account_info)
+        let account_info_option = if let Some(row) = query_result {
+            Some(account_from_row!(
+                row, id, name, password, question, answer, email, qq, id_card, point
+            ))
+        } else {
+            None
+        };
+        Ok(account_info_option)
     }
 
     pub async fn insert_user(
@@ -95,8 +98,10 @@ impl Account {
         self.password == input_password
     }
 
-    //todo
     pub fn is_locked(&self) -> bool {
+        if let Some(ref value) = self.id_card {
+            return value == "1";
+        }
         false
     }
 
