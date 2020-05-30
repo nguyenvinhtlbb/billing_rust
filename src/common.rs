@@ -16,5 +16,6 @@ pub use billing_data::BillingData;
 pub use billing_handler::BillingHandler;
 pub use logger::LogMessageType;
 pub use logger::Logger;
+pub use logger::LoggerSender;
 pub use parse_pack_error::ParsePackError;
 pub use response_error::ResponseError;

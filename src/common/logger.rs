@@ -5,6 +5,7 @@ use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::join;
+use tokio::sync::mpsc::Sender;
 
 /// 日志工具
 pub struct Logger {
@@ -108,11 +109,14 @@ impl Logger {
     }
 }
 
+pub type LoggerSender = Sender<(LogMessageType, String)>;
 /// 输出日志
 #[macro_export]
 macro_rules! log_message {
-    ($logger:expr,$message_type:ident, $($args:tt)*) => {
+    ($logger_sender:ident,$message_type:ident, $($args:tt)*) => {
         let message = format!($($args)*);
-        $logger.log($crate::common::LogMessageType::$message_type,&message).await;
+        if let Err(err) = $logger_sender.send(($crate::common::LogMessageType::$message_type,message)).await{
+            eprintln!("logger dropped: {}",err);
+        }
     };
 }

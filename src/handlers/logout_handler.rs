@@ -1,22 +1,23 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::services::read_buffer_slice;
 use async_trait::async_trait;
 use std::str;
-use std::sync::Arc;
+
+use tokio::sync::Mutex;
 
 pub struct LogoutHandler {
     auth_users_collection: AuthUsersCollection,
-    logger: Arc<Logger>,
+    logger_sender: Mutex<LoggerSender>,
 }
 
 impl LogoutHandler {
-    pub fn new(auth_users_collection: AuthUsersCollection, logger: Arc<Logger>) -> Self {
+    pub fn new(auth_users_collection: AuthUsersCollection, logger_sender: LoggerSender) -> Self {
         LogoutHandler {
             auth_users_collection,
-            logger,
+            logger_sender: Mutex::new(logger_sender),
         }
     }
 }
@@ -36,7 +37,8 @@ impl BillingHandler for LogoutHandler {
         //更新在线状态
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::remove_user(auth_users_guard, username_str);
-        log_message!(self.logger, Info, "user {} logout game", username_str);
+        let mut logger_sender = self.logger_sender.lock().await;
+        log_message!(logger_sender, Info, "user {} logout game", username_str);
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
         response.op_data.extend_from_slice(username);

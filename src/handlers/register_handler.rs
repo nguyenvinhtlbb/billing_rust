@@ -1,19 +1,23 @@
-use crate::common::{BillingData, BillingHandler, Logger, ResponseError};
+use crate::common::{BillingData, BillingHandler, LoggerSender, ResponseError};
 use crate::log_message;
 use crate::services::{get_register_result, read_buffer_slice};
 use async_trait::async_trait;
 use mysql_async::Pool;
 use std::str;
-use std::sync::Arc;
+
+use tokio::sync::Mutex;
 
 pub struct RegisterHandler {
     db_pool: Pool,
-    logger: Arc<Logger>,
+    logger_sender: Mutex<LoggerSender>,
 }
 
 impl RegisterHandler {
-    pub fn new(db_pool: Pool, logger: Arc<Logger>) -> Self {
-        RegisterHandler { db_pool, logger }
+    pub fn new(db_pool: Pool, logger_sender: LoggerSender) -> Self {
+        RegisterHandler {
+            db_pool,
+            logger_sender: Mutex::new(logger_sender),
+        }
     }
 }
 
@@ -53,7 +57,8 @@ impl BillingHandler for RegisterHandler {
             Ok(value) => value,
             Err(err) => {
                 // 数据库异常
-                log_message!(self.logger, Error, "query error: {}", err);
+                let mut logger_sender = self.logger_sender.lock().await;
+                log_message!(logger_sender, Error, "query error: {}", err);
                 4
             }
         };
@@ -63,8 +68,9 @@ impl BillingHandler for RegisterHandler {
         } else {
             "error"
         };
+        let mut logger_sender = self.logger_sender.lock().await;
         log_message!(
-            self.logger,
+            logger_sender,
             Info,
             "user {}({}) try to register from {} : {}",
             username_str,

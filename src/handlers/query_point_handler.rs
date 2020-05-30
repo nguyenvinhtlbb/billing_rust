@@ -1,5 +1,5 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::models::Account;
@@ -7,24 +7,25 @@ use crate::services::{decode_role_name, read_buffer_slice};
 use async_trait::async_trait;
 use mysql_async::Pool;
 use std::str;
-use std::sync::Arc;
+
+use tokio::sync::Mutex;
 
 pub struct QueryPointHandler {
     db_pool: Pool,
     auth_users_collection: AuthUsersCollection,
-    logger: Arc<Logger>,
+    logger_sender: Mutex<LoggerSender>,
 }
 
 impl QueryPointHandler {
     pub fn new(
         db_pool: Pool,
         auth_users_collection: AuthUsersCollection,
-        logger: Arc<Logger>,
+        logger_sender: LoggerSender,
     ) -> Self {
         QueryPointHandler {
             db_pool,
             auth_users_collection,
-            logger,
+            logger_sender: Mutex::new(logger_sender),
         }
     }
 }
@@ -56,8 +57,9 @@ impl BillingHandler for QueryPointHandler {
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::set_auth_user(auth_users_guard, username_str, true);
         let role_name_str = decode_role_name(role_nickname);
+        let mut logger_sender = self.logger_sender.lock().await;
         log_message!(
-            self.logger,
+            logger_sender,
             Info,
             "user [{}] {} query point ({}) at {}",
             username_str,

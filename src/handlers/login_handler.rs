@@ -1,18 +1,19 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::services::{get_login_result, read_buffer_slice};
 use async_trait::async_trait;
 use mysql_async::Pool;
 use std::str;
-use std::sync::Arc;
+
+use tokio::sync::Mutex;
 
 pub struct LoginHandler {
     db_pool: Pool,
     auto_reg: bool,
     auth_users_collection: AuthUsersCollection,
-    logger: Arc<Logger>,
+    logger_sender: Mutex<LoggerSender>,
 }
 
 impl LoginHandler {
@@ -20,13 +21,13 @@ impl LoginHandler {
         db_pool: Pool,
         auto_reg: bool,
         auth_users_collection: AuthUsersCollection,
-        logger: Arc<Logger>,
+        logger_sender: LoggerSender,
     ) -> Self {
         LoginHandler {
             db_pool,
             auto_reg,
             auth_users_collection,
-            logger,
+            logger_sender: Mutex::new(logger_sender),
         }
     }
 }
@@ -60,7 +61,8 @@ impl BillingHandler for LoginHandler {
             Ok(value) => value,
             Err(err) => {
                 // 数据库异常
-                log_message!(self.logger, Error, "query error: {}", err);
+                let mut logger_sender = self.logger_sender.lock().await;
+                log_message!(logger_sender, Error, "query error: {}", err);
                 6
             }
         };
@@ -91,8 +93,9 @@ impl BillingHandler for LoginHandler {
             9 => "user does not exists(go to register)",
             _ => "unknown",
         };
+        let mut logger_sender = self.logger_sender.lock().await;
         log_message!(
-            self.logger,
+            logger_sender,
             Info,
             "user {} try to login from {} MD5(MAC) = {} : {}",
             username_str,

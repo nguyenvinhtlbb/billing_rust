@@ -1,4 +1,4 @@
-use crate::common::{BillConfig, Logger, ResponseError};
+use crate::common::{BillConfig, LoggerSender, ResponseError};
 use crate::log_message;
 use mysql_async::Pool;
 use std::net::SocketAddr;
@@ -17,12 +17,17 @@ pub(super) fn on_client_connected(
     server_config: &BillConfig,
     tx: &Sender<u8>,
     stopped_flag: Arc<RwLock<bool>>,
-    logger: Arc<Logger>,
+    mut logger_sender: LoggerSender,
 ) {
-    let handlers =
-        super::make_handlers::make_handlers(server_config, &tx, &db_pool, &stopped_flag, &logger);
+    let handlers = super::make_handlers::make_handlers(
+        server_config,
+        &tx,
+        &db_pool,
+        &stopped_flag,
+        &logger_sender,
+    );
     tokio::spawn(async move {
-        log_message!(logger, Info, "client {} connected", &client_address);
+        log_message!(logger_sender, Info, "client {} connected", &client_address);
         let mut buf = [0; 1024];
         let mut client_data: Vec<u8> = vec![];
         // In a loop, read data from the client
@@ -31,7 +36,12 @@ pub(super) fn on_client_connected(
                 // socket closed
                 Ok(n) => {
                     if n == 0 {
-                        log_message!(logger, Error, "client {} disconnected", &client_address);
+                        log_message!(
+                            logger_sender,
+                            Error,
+                            "client {} disconnected",
+                            &client_address
+                        );
                         return;
                     }
                     n
@@ -40,7 +50,12 @@ pub(super) fn on_client_connected(
                     // 如果是主动停止服务的,则忽略错误
                     let stopped_flag_guard = stopped_flag.read().await;
                     if !*stopped_flag_guard {
-                        log_message!(logger, Error, "failed to read from socket; err = {:?}", e);
+                        log_message!(
+                            logger_sender,
+                            Error,
+                            "failed to read from socket; err = {:?}",
+                            e
+                        );
                     }
                     return;
                 }
@@ -48,9 +63,13 @@ pub(super) fn on_client_connected(
             //将读取到数据附加到client_data后面
             client_data.extend_from_slice(&buf[..n]);
             //处理读取到的数据,如果出现错误则直接返回(断开连接)
-            if let Err(err) =
-                services::process_client_data(&mut socket, &mut client_data, &handlers, &logger)
-                    .await
+            if let Err(err) = services::process_client_data(
+                &mut socket,
+                &mut client_data,
+                &handlers,
+                logger_sender.clone(),
+            )
+            .await
             {
                 let message = match err {
                     ResponseError::WriteError(err) => {
@@ -59,7 +78,7 @@ pub(super) fn on_client_connected(
                     ResponseError::PackError => "invalid pack data".to_string(),
                     ResponseError::DatabaseError(err) => format!("database error: {}", err),
                 };
-                log_message!(logger, Error, "{}", message);
+                log_message!(logger_sender, Error, "{}", message);
                 return;
             }
         }

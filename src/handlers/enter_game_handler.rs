@@ -1,22 +1,23 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::services::{decode_role_name, read_buffer_slice};
 use async_trait::async_trait;
 use std::str;
-use std::sync::Arc;
+
+use tokio::sync::Mutex;
 
 pub struct EnterGameHandler {
     auth_users_collection: AuthUsersCollection,
-    logger: Arc<Logger>,
+    logger_sender: Mutex<LoggerSender>,
 }
 
 impl EnterGameHandler {
-    pub fn new(auth_users_collection: AuthUsersCollection, logger: Arc<Logger>) -> Self {
+    pub fn new(auth_users_collection: AuthUsersCollection, logger_sender: LoggerSender) -> Self {
         EnterGameHandler {
             auth_users_collection,
-            logger,
+            logger_sender: Mutex::new(logger_sender),
         }
     }
 }
@@ -36,8 +37,9 @@ impl BillingHandler for EnterGameHandler {
         //角色名
         let (role_nickname, _) = read_buffer_slice(request_op_data, offset);
         let role_name_str = decode_role_name(role_nickname);
+        let mut logger_sender = self.logger_sender.lock().await;
         log_message!(
-            self.logger,
+            logger_sender,
             Info,
             "user [{}] {} entered game",
             username_str,

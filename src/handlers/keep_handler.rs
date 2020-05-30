@@ -1,22 +1,23 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::services::read_buffer_slice;
 use async_trait::async_trait;
 use std::str;
-use std::sync::Arc;
+
+use tokio::sync::Mutex;
 
 pub struct KeepHandler {
     auth_users_collection: AuthUsersCollection,
-    logger: Arc<Logger>,
+    logger_sender: Mutex<LoggerSender>,
 }
 
 impl KeepHandler {
-    pub fn new(auth_users_collection: AuthUsersCollection, logger: Arc<Logger>) -> Self {
+    pub fn new(auth_users_collection: AuthUsersCollection, logger_sender: LoggerSender) -> Self {
         KeepHandler {
             auth_users_collection,
-            logger,
+            logger_sender: Mutex::new(logger_sender),
         }
     }
 }
@@ -40,8 +41,9 @@ impl BillingHandler for KeepHandler {
         //更新用户状态
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::set_auth_user(auth_users_guard, username_str, true);
+        let mut logger_sender = self.logger_sender.lock().await;
         log_message!(
-            self.logger,
+            logger_sender,
             Info,
             "keep: user [{}] level {}",
             username_str,

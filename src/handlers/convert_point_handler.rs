@@ -1,5 +1,5 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::models::Account;
@@ -8,13 +8,14 @@ use async_trait::async_trait;
 use mysql_async::Pool;
 use std::cmp::min;
 use std::str;
-use std::sync::Arc;
+
+use tokio::sync::Mutex;
 
 pub struct ConvertPointHandler {
     db_pool: Pool,
     convert_number: i32,
     auth_users_collection: AuthUsersCollection,
-    logger: Arc<Logger>,
+    logger_sender: Mutex<LoggerSender>,
 }
 
 impl ConvertPointHandler {
@@ -22,13 +23,13 @@ impl ConvertPointHandler {
         db_pool: Pool,
         convert_number: i32,
         auth_users_collection: AuthUsersCollection,
-        logger: Arc<Logger>,
+        logger_sender: LoggerSender,
     ) -> Self {
         ConvertPointHandler {
             db_pool,
             convert_number,
             auth_users_collection,
-            logger,
+            logger_sender: Mutex::new(logger_sender),
         }
     }
 }
@@ -89,8 +90,9 @@ impl BillingHandler for ConvertPointHandler {
                 None => 0,
             },
             Err(err) => {
+                let mut logger_sender = self.logger_sender.lock().await;
                 log_message!(
-                    self.logger,
+                    logger_sender,
                     Error,
                     "get account {} info error {}",
                     username_str,
@@ -111,8 +113,9 @@ impl BillingHandler for ConvertPointHandler {
         {
             Ok(_) => cost_point,
             Err(err) => {
+                let mut logger_sender = self.logger_sender.lock().await;
                 log_message!(
-                    self.logger,
+                    logger_sender,
                     Error,
                     "account {} convert point error {}",
                     username_str,
@@ -125,8 +128,9 @@ impl BillingHandler for ConvertPointHandler {
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::set_auth_user(auth_users_guard, username_str, true);
         let client_ip_str = str::from_utf8(client_ip).unwrap();
+        let mut logger_sender = self.logger_sender.lock().await;
         log_message!(
-            self.logger,
+            logger_sender,
             Info,
             "user [{}] {}(ip: {}) point total [{}], need point [{}]: {}-{}={}",
             username_str,
