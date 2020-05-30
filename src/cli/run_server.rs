@@ -1,34 +1,19 @@
-use crate::common::{AuthUsersCollection, BillConfig, BillingHandler, ResponseError};
-
+use crate::common::BillConfig;
 use crate::services;
-use mysql_async::Pool;
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::io::AsyncReadExt;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio::select;
-use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::sync::RwLock;
-mod shutdown_signal;
+use tokio::sync::mpsc;
+
 mod accept_connection;
-use shutdown_signal::shutdown_signal;
+mod shutdown_signal;
 use accept_connection::accept_connection;
-mod on_client_connected;
+use shutdown_signal::shutdown_signal;
 mod make_handlers;
+mod on_client_connected;
 
 /// 运行服务器
 pub async fn run_server(server_config: BillConfig) {
-    dbg!(&server_config);
-    //连接数据库
-    let db_pool = services::create_db_pool(&server_config);
-    match services::get_db_version(&db_pool).await {
-        Ok(value) => println!("mysql version: {}", value),
-        Err(err) => {
-            eprintln!("Database Error: {}", err);
-            return;
-        }
-    };
+    //dbg!(&server_config);
     //创建tcp服务器
     let listen_address = server_config.listen_address();
     let mut listener = match TcpListener::bind(&listen_address).await {
@@ -38,7 +23,18 @@ pub async fn run_server(server_config: BillConfig) {
             return;
         }
     };
-    println!("server run at {}", &listen_address);
+    //连接数据库
+    println!("Connecting to database...");
+    let db_pool = services::create_db_pool(&server_config);
+    match services::get_db_version(&db_pool).await {
+        Ok(value) => println!("mysql version: {}", value),
+        Err(err) => {
+            eprintln!("Database Error: {}", err);
+            return;
+        }
+    };
+    println!("billing server run at {}", &listen_address);
+    //用于关闭服务的channel
     let (tx, rx) = mpsc::channel::<u8>(1);
     select! {
         _ = accept_connection(&mut listener,&db_pool,&server_config,tx) => {

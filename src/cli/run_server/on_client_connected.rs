@@ -1,13 +1,13 @@
-use tokio::net::TcpStream;
-use std::net::SocketAddr;
+use crate::common::{BillConfig, ResponseError};
 use mysql_async::Pool;
-use crate::common::{BillConfig, AuthUsersCollection, BillingHandler, ResponseError};
-use tokio::sync::mpsc::Sender;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::net::TcpStream;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::RwLock;
-use std::collections::HashMap;
-use tokio::io::AsyncReadExt;
+
 use crate::services;
+use tokio::io::AsyncReadExt;
 
 pub(super) fn on_client_connected(
     mut socket: TcpStream,
@@ -34,6 +34,7 @@ pub(super) fn on_client_connected(
                     n
                 }
                 Err(e) => {
+                    // 如果是主动停止服务的,则忽略错误
                     let stopped_flag_guard = stopped_flag.read().await;
                     if !*stopped_flag_guard {
                         eprintln!("failed to read from socket; err = {:?}", e);
@@ -45,7 +46,7 @@ pub(super) fn on_client_connected(
             client_data.extend_from_slice(&buf[..n]);
             //处理读取到的数据,如果出现错误则直接返回(断开连接)
             if let Err(err) =
-            services::process_client_data(&mut socket, &mut client_data, &handlers).await
+                services::process_client_data(&mut socket, &mut client_data, &handlers).await
             {
                 let message = match err {
                     ResponseError::WriteError(err) => {

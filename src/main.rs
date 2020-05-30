@@ -22,5 +22,14 @@ async fn main() {
             return;
         }
     }
+    println!("powered by liuguang @github https://github.com/liuguangw");
+    println!(
+        "build by {}",
+        option_env!("COMPILER_VERSION").unwrap_or("-")
+    );
+    println!(
+        "Git Commit: {:.7}",
+        option_env!("GIT_COMMIT_VERSION").unwrap_or("-")
+    );
     cli::run_server(server_config).await;
 }

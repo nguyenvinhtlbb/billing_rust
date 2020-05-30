@@ -1,5 +1,5 @@
-use tokio::sync::mpsc::Receiver;
 use tokio::select;
+use tokio::sync::mpsc::Receiver;
 
 /// 停止服务器的信号
 pub(super) async fn shutdown_signal(mut rx: Receiver<u8>) -> i32 {

@@ -22,8 +22,8 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
                     ParsePackError::BillingDataError => return Err(ResponseError::PackError),
                 },
             };
-        let new_slice = client_data.as_slice();
         //将读取到的字节数据移出
+        let new_slice = client_data.as_slice();
         *client_data = Vec::from(&new_slice[full_pack_size..]);
         //用于调试,打印除了0xA1类型的BillingData请求
         if billing_data.op_type != 0xA1 {
