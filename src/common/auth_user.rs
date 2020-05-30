@@ -33,8 +33,8 @@ impl AuthUser {
         if let Some(auth_user) = auth_users_guard.get(username) {
             let time_now = SystemTime::now();
             let time_duration = time_now.duration_since(auth_user.last_active_time).unwrap();
-            //用户最后活跃时间在50分钟内
-            if time_duration.as_secs() <= 50 * 60 {
+            //用户最后活跃时间在30分钟内
+            if time_duration.as_secs() <= 30 * 60 {
                 return auth_user.role_online;
             }
         }

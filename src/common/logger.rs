@@ -1,16 +1,15 @@
 use chrono::Local;
 use std::io::Write;
 use std::path::PathBuf;
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use termcolor::{BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::join;
-use tokio::sync::Mutex;
 
 /// 日志工具
 pub struct Logger {
-    stdout: Mutex<StandardStream>,
-    stderr: Mutex<StandardStream>,
+    stdout: BufferWriter,
+    stderr: BufferWriter,
     log_file: PathBuf,
 }
 
@@ -26,8 +25,8 @@ impl Logger {
     pub fn new(log_file: PathBuf) -> Self {
         let choice = ColorChoice::Auto;
         Logger {
-            stdout: Mutex::new(StandardStream::stdout(choice)),
-            stderr: Mutex::new(StandardStream::stderr(choice)),
+            stdout: BufferWriter::stdout(choice),
+            stderr: BufferWriter::stderr(choice),
             log_file,
         }
     }
@@ -78,31 +77,34 @@ impl Logger {
     }
 
     async fn show_message(&self, message_type: LogMessageType, message: &str) {
-        let mut color = ColorSpec::new();
-        let stream_guard = match message_type {
+        let mut color_spec = ColorSpec::new();
+        let buffer_writer = match message_type {
             LogMessageType::Error => {
-                color.set_fg(Some(Color::Red));
+                color_spec.set_fg(Some(Color::Red));
                 &self.stderr
             }
             LogMessageType::Warning => {
-                color.set_fg(Some(Color::Yellow));
+                color_spec.set_fg(Some(Color::Yellow));
                 &self.stderr
             }
             LogMessageType::Info => {
-                color.set_fg(Some(Color::Green));
+                color_spec.set_fg(Some(Color::Green));
                 &self.stdout
             }
             LogMessageType::Debug => {
-                color.set_fg(Some(Color::Cyan));
+                color_spec.set_fg(Some(Color::Cyan));
                 &self.stdout
             }
         };
-        let mut stream_guard = stream_guard.lock().await;
-        if let Err(err) = stream_guard.set_color(&color) {
+        let mut buffer = buffer_writer.buffer();
+        if let Err(err) = buffer.set_color(&color_spec) {
             eprintln!("failed to set color: {}", err);
         }
-        stream_guard.write_all(message.as_bytes()).unwrap();
-        stream_guard.reset().unwrap();
+        write!(&mut buffer, "{}", message).unwrap();
+        if let Err(err) = buffer_writer.print(&buffer) {
+            eprintln!("failed to output buffer: {}", err);
+        }
+        buffer.reset().unwrap();
     }
 }
 
