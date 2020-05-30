@@ -1,15 +1,20 @@
-use crate::common::{AuthUser, AuthUsersCollection, BillingData, BillingHandler, ResponseError};
+use crate::common::{
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+};
+use crate::log_message;
 use crate::models::Account;
 use crate::services::{decode_role_name, read_buffer_slice};
 use async_trait::async_trait;
 use mysql_async::Pool;
 use std::cmp::min;
 use std::str;
+use std::sync::Arc;
 
 pub struct ConvertPointHandler {
     db_pool: Pool,
     convert_number: i32,
     auth_users_collection: AuthUsersCollection,
+    logger: Arc<Logger>,
 }
 
 impl ConvertPointHandler {
@@ -17,11 +22,13 @@ impl ConvertPointHandler {
         db_pool: Pool,
         convert_number: i32,
         auth_users_collection: AuthUsersCollection,
+        logger: Arc<Logger>,
     ) -> Self {
         ConvertPointHandler {
             db_pool,
             convert_number,
             auth_users_collection,
+            logger,
         }
     }
 }
@@ -82,7 +89,13 @@ impl BillingHandler for ConvertPointHandler {
                 None => 0,
             },
             Err(err) => {
-                eprintln!("get account {} info error {}", username_str, err);
+                log_message!(
+                    self.logger,
+                    Error,
+                    "get account {} info error {}",
+                    username_str,
+                    err
+                );
                 0
             }
         };
@@ -98,7 +111,13 @@ impl BillingHandler for ConvertPointHandler {
         {
             Ok(_) => cost_point,
             Err(err) => {
-                eprintln!("account {} convert point error {}", username_str, err);
+                log_message!(
+                    self.logger,
+                    Error,
+                    "account {} convert point error {}",
+                    username_str,
+                    err
+                );
                 0
             }
         };
@@ -106,7 +125,9 @@ impl BillingHandler for ConvertPointHandler {
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::set_auth_user(auth_users_guard, username_str, true);
         let client_ip_str = str::from_utf8(client_ip).unwrap();
-        println!(
+        log_message!(
+            self.logger,
+            Info,
             "user [{}] {}(ip: {}) point total [{}], need point [{}]: {}-{}={}",
             username_str,
             decode_role_name(role_nickname),

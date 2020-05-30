@@ -1,16 +1,22 @@
-use crate::common::{AuthUser, AuthUsersCollection, BillingData, BillingHandler, ResponseError};
+use crate::common::{
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+};
+use crate::log_message;
 use crate::services::{decode_role_name, read_buffer_slice};
 use async_trait::async_trait;
 use std::str;
+use std::sync::Arc;
 
 pub struct EnterGameHandler {
     auth_users_collection: AuthUsersCollection,
+    logger: Arc<Logger>,
 }
 
 impl EnterGameHandler {
-    pub fn new(auth_users_collection: AuthUsersCollection) -> Self {
+    pub fn new(auth_users_collection: AuthUsersCollection, logger: Arc<Logger>) -> Self {
         EnterGameHandler {
             auth_users_collection,
+            logger,
         }
     }
 }
@@ -30,7 +36,13 @@ impl BillingHandler for EnterGameHandler {
         //角色名
         let (role_nickname, _) = read_buffer_slice(request_op_data, offset);
         let role_name_str = decode_role_name(role_nickname);
-        println!("user [{}] {} entered game", username_str, &role_name_str);
+        log_message!(
+            self.logger,
+            Info,
+            "user [{}] {} entered game",
+            username_str,
+            &role_name_str
+        );
         //更新用户状态
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::set_auth_user(auth_users_guard, username_str, true);

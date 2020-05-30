@@ -1,4 +1,4 @@
-use crate::common::{AuthUsersCollection, BillConfig, BillingHandler};
+use crate::common::{AuthUsersCollection, BillConfig, BillingHandler, Logger};
 use crate::handlers::{
     CloseHandler, ConnectHandler, ConvertPointHandler, CostLogHandler, EnterGameHandler,
     KeepHandler, KickHandler, LoginHandler, LogoutHandler, PingHandler, QueryPointHandler,
@@ -26,6 +26,7 @@ pub(super) fn make_handlers(
     tx: &Sender<u8>,
     db_pool: &Pool,
     stopped_flag: &Arc<RwLock<bool>>,
+    logger: &Arc<Logger>,
 ) -> HashMap<u8, Box<dyn BillingHandler>> {
     let mut handlers: HashMap<u8, Box<dyn BillingHandler>> = HashMap::new();
     let auto_reg = server_config.auto_reg();
@@ -35,22 +36,32 @@ pub(super) fn make_handlers(
     //向handlers Map中添加handler
     add_handler!(
         handlers,
-        CloseHandler::new(tx.clone(), stopped_flag.clone()),
+        CloseHandler::new(tx.clone(), stopped_flag.clone(), logger.clone()),
         ConnectHandler,
         PingHandler,
-        LoginHandler::new(db_pool.clone(), auto_reg, auth_users_collection.clone()),
-        EnterGameHandler::new(auth_users_collection.clone()),
-        LogoutHandler::new(auth_users_collection.clone()),
-        KeepHandler::new(auth_users_collection.clone()),
+        LoginHandler::new(
+            db_pool.clone(),
+            auto_reg,
+            auth_users_collection.clone(),
+            logger.clone()
+        ),
+        EnterGameHandler::new(auth_users_collection.clone(), logger.clone()),
+        LogoutHandler::new(auth_users_collection.clone(), logger.clone()),
+        KeepHandler::new(auth_users_collection.clone(), logger.clone()),
         KickHandler,
         CostLogHandler,
         ConvertPointHandler::new(
             db_pool.clone(),
             convert_number,
-            auth_users_collection.clone()
+            auth_users_collection.clone(),
+            logger.clone()
         ),
-        QueryPointHandler::new(db_pool.clone(), auth_users_collection.clone()),
-        RegisterHandler::new(db_pool.clone())
+        QueryPointHandler::new(
+            db_pool.clone(),
+            auth_users_collection.clone(),
+            logger.clone()
+        ),
+        RegisterHandler::new(db_pool.clone(), logger.clone())
     );
     handlers
 }

@@ -1,16 +1,22 @@
-use crate::common::{AuthUser, AuthUsersCollection, BillingData, BillingHandler, ResponseError};
+use crate::common::{
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+};
+use crate::log_message;
 use crate::services::read_buffer_slice;
 use async_trait::async_trait;
 use std::str;
+use std::sync::Arc;
 
 pub struct KeepHandler {
     auth_users_collection: AuthUsersCollection,
+    logger: Arc<Logger>,
 }
 
 impl KeepHandler {
-    pub fn new(auth_users_collection: AuthUsersCollection) -> Self {
+    pub fn new(auth_users_collection: AuthUsersCollection, logger: Arc<Logger>) -> Self {
         KeepHandler {
             auth_users_collection,
+            logger,
         }
     }
 }
@@ -34,7 +40,13 @@ impl BillingHandler for KeepHandler {
         //更新用户状态
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::set_auth_user(auth_users_guard, username_str, true);
-        println!("keep: user [{}] level {}", username_str, user_level);
+        log_message!(
+            self.logger,
+            Info,
+            "keep: user [{}] level {}",
+            username_str,
+            user_level
+        );
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
         response.op_data.extend_from_slice(username);

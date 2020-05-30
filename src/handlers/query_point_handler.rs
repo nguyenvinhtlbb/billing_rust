@@ -1,20 +1,30 @@
-use crate::common::{AuthUser, AuthUsersCollection, BillingData, BillingHandler, ResponseError};
+use crate::common::{
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+};
+use crate::log_message;
 use crate::models::Account;
 use crate::services::{decode_role_name, read_buffer_slice};
 use async_trait::async_trait;
 use mysql_async::Pool;
 use std::str;
+use std::sync::Arc;
 
 pub struct QueryPointHandler {
     db_pool: Pool,
     auth_users_collection: AuthUsersCollection,
+    logger: Arc<Logger>,
 }
 
 impl QueryPointHandler {
-    pub fn new(db_pool: Pool, auth_users_collection: AuthUsersCollection) -> Self {
+    pub fn new(
+        db_pool: Pool,
+        auth_users_collection: AuthUsersCollection,
+        logger: Arc<Logger>,
+    ) -> Self {
         QueryPointHandler {
             db_pool,
             auth_users_collection,
+            logger,
         }
     }
 }
@@ -46,9 +56,14 @@ impl BillingHandler for QueryPointHandler {
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::set_auth_user(auth_users_guard, username_str, true);
         let role_name_str = decode_role_name(role_nickname);
-        println!(
+        log_message!(
+            self.logger,
+            Info,
             "user [{}] {} query point ({}) at {}",
-            username_str, &role_name_str, point_value, client_ip_str
+            username_str,
+            &role_name_str,
+            point_value,
+            client_ip_str
         );
         //
         let mut response: BillingData = request.into();

@@ -1,4 +1,5 @@
-use crate::common::BillConfig;
+use crate::common::{BillConfig, Logger};
+use crate::log_message;
 use mysql_async::Pool;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -11,13 +12,14 @@ pub(super) async fn accept_connection(
     db_pool: &Pool,
     server_config: &BillConfig,
     tx: Sender<u8>,
+    logger: &Arc<Logger>,
 ) {
     let stopped_flag = Arc::new(RwLock::new(false));
     loop {
         let (socket, addr) = match listener.accept().await {
             Ok(value) => value,
             Err(err) => {
-                eprintln!("accept client error: {}", err);
+                log_message!(logger, Error, "accept client error: {}", err);
                 continue;
             }
         };
@@ -28,6 +30,7 @@ pub(super) async fn accept_connection(
             &server_config,
             &tx,
             stopped_flag.clone(),
+            logger.clone(),
         );
     }
 }

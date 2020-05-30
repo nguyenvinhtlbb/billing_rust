@@ -95,6 +95,7 @@ name = "billing_rust"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "encoding_rs",
  "mysql_async",
  "serde",

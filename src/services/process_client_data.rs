@@ -1,5 +1,7 @@
-use crate::common::{BillingData, BillingHandler, ParsePackError, ResponseError};
+use crate::common::{BillingData, BillingHandler, Logger, ParsePackError, ResponseError};
+use crate::log_message;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
@@ -8,6 +10,7 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
     socket: &mut TcpStream,
     client_data: &mut Vec<u8>,
     handlers: &HashMap<u8, Box<dyn BillingHandler>, S>,
+    logger: &Arc<Logger>,
 ) -> Result<(), ResponseError> {
     //循环读取
     loop {
@@ -27,7 +30,7 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
         *client_data = Vec::from(&new_slice[full_pack_size..]);
         //用于调试,打印除了0xA1类型的BillingData请求
         if billing_data.op_type != 0xA1 {
-            dbg!(&billing_data);
+            log_message!(logger, Debug, "request = {:?}", &billing_data);
         }
         //查找对应类型的handler
         if let Some(bill_handler) = handlers.get(&billing_data.op_type) {
@@ -41,10 +44,13 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
             socket.write_all(&response_bytes).await?;
         } else {
             // 记录不能处理的类型
-            eprintln!(
+            log_message!(
+                logger,
+                Error,
                 "unknown billing data (op_type={:#04X}) :{:?}",
-                billing_data.op_type, &billing_data
-            )
+                billing_data.op_type,
+                &billing_data
+            );
         }
     }
     Ok(())

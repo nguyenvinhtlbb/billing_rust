@@ -1,4 +1,5 @@
-use crate::common::{BillConfig, ResponseError};
+use crate::common::{BillConfig, Logger, ResponseError};
+use crate::log_message;
 use mysql_async::Pool;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -16,10 +17,12 @@ pub(super) fn on_client_connected(
     server_config: &BillConfig,
     tx: &Sender<u8>,
     stopped_flag: Arc<RwLock<bool>>,
+    logger: Arc<Logger>,
 ) {
-    let handlers = super::make_handlers::make_handlers(server_config, &tx, &db_pool, &stopped_flag);
+    let handlers =
+        super::make_handlers::make_handlers(server_config, &tx, &db_pool, &stopped_flag, &logger);
     tokio::spawn(async move {
-        println!("client {} connected", &client_address);
+        log_message!(logger, Info, "client {} connected", &client_address);
         let mut buf = [0; 1024];
         let mut client_data: Vec<u8> = vec![];
         // In a loop, read data from the client
@@ -28,7 +31,7 @@ pub(super) fn on_client_connected(
                 // socket closed
                 Ok(n) => {
                     if n == 0 {
-                        eprintln!("client {} disconnected", &client_address);
+                        log_message!(logger, Error, "client {} disconnected", &client_address);
                         return;
                     }
                     n
@@ -37,7 +40,7 @@ pub(super) fn on_client_connected(
                     // 如果是主动停止服务的,则忽略错误
                     let stopped_flag_guard = stopped_flag.read().await;
                     if !*stopped_flag_guard {
-                        eprintln!("failed to read from socket; err = {:?}", e);
+                        log_message!(logger, Error, "failed to read from socket; err = {:?}", e);
                     }
                     return;
                 }
@@ -46,7 +49,8 @@ pub(super) fn on_client_connected(
             client_data.extend_from_slice(&buf[..n]);
             //处理读取到的数据,如果出现错误则直接返回(断开连接)
             if let Err(err) =
-                services::process_client_data(&mut socket, &mut client_data, &handlers).await
+                services::process_client_data(&mut socket, &mut client_data, &handlers, &logger)
+                    .await
             {
                 let message = match err {
                     ResponseError::WriteError(err) => {
@@ -55,7 +59,7 @@ pub(super) fn on_client_connected(
                     ResponseError::PackError => "invalid pack data".to_string(),
                     ResponseError::DatabaseError(err) => format!("database error: {}", err),
                 };
-                eprintln!("{}", message);
+                log_message!(logger, Error, "{}", message);
                 return;
             }
         }

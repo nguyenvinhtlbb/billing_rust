@@ -1,4 +1,5 @@
-use crate::common::{BillingData, BillingHandler, ResponseError};
+use crate::common::{BillingData, BillingHandler, Logger, ResponseError};
+use crate::log_message;
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
@@ -7,11 +8,16 @@ use tokio::sync::RwLock;
 pub struct CloseHandler {
     tx: Sender<u8>,
     stopped_flag: Arc<RwLock<bool>>,
+    logger: Arc<Logger>,
 }
 
 impl CloseHandler {
-    pub fn new(tx: Sender<u8>, stopped_flag: Arc<RwLock<bool>>) -> Self {
-        CloseHandler { tx, stopped_flag }
+    pub fn new(tx: Sender<u8>, stopped_flag: Arc<RwLock<bool>>, logger: Arc<Logger>) -> Self {
+        CloseHandler {
+            tx,
+            stopped_flag,
+            logger,
+        }
     }
 }
 
@@ -30,7 +36,7 @@ impl BillingHandler for CloseHandler {
             {
                 let mut sender = self.tx.clone();
                 if let Err(err) = sender.send(0).await {
-                    println!("receiver dropped: {}", err);
+                    log_message!(self.logger, Error, "receiver dropped: {}", err);
                 }
             }
         }

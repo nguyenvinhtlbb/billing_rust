@@ -1,21 +1,32 @@
-use crate::common::{AuthUser, AuthUsersCollection, BillingData, BillingHandler, ResponseError};
+use crate::common::{
+    AuthUser, AuthUsersCollection, BillingData, BillingHandler, Logger, ResponseError,
+};
+use crate::log_message;
 use crate::services::{get_login_result, read_buffer_slice};
 use async_trait::async_trait;
 use mysql_async::Pool;
 use std::str;
+use std::sync::Arc;
 
 pub struct LoginHandler {
     db_pool: Pool,
     auto_reg: bool,
     auth_users_collection: AuthUsersCollection,
+    logger: Arc<Logger>,
 }
 
 impl LoginHandler {
-    pub fn new(db_pool: Pool, auto_reg: bool, auth_users_collection: AuthUsersCollection) -> Self {
+    pub fn new(
+        db_pool: Pool,
+        auto_reg: bool,
+        auth_users_collection: AuthUsersCollection,
+        logger: Arc<Logger>,
+    ) -> Self {
         LoginHandler {
             db_pool,
             auto_reg,
             auth_users_collection,
+            logger,
         }
     }
 }
@@ -49,7 +60,7 @@ impl BillingHandler for LoginHandler {
             Ok(value) => value,
             Err(err) => {
                 // 数据库异常
-                eprintln!("query error: {}", err);
+                log_message!(self.logger, Error, "query error: {}", err);
                 6
             }
         };
@@ -80,9 +91,14 @@ impl BillingHandler for LoginHandler {
             9 => "user does not exists(go to register)",
             _ => "unknown",
         };
-        println!(
+        log_message!(
+            self.logger,
+            Info,
             "user {} try to login from {} MD5(MAC) = {} : {}",
-            username_str, login_ip_str, mac_hash_str, login_flag_str
+            username_str,
+            login_ip_str,
+            mac_hash_str,
+            login_flag_str
         );
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
