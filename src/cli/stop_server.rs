@@ -14,9 +14,9 @@ pub async fn stop_server(server_config: BillConfig, mut logger_sender: LoggerSen
         }
     };
     let send_data = BillingData::default().pack_data();
-    log_message!(logger_sender, Info, "stopping billing server ...");
+    log_message!(logger_sender, false, Info, "stopping billing server ...");
     if let Err(err) = stream.write_all(&send_data).await {
         log_message!(logger_sender, Error, "stop billing failed: {}", err);
     }
-    log_message!(logger_sender, Info, "stopped success");
+    log_message!(logger_sender, false, Info, "stopped success");
 }

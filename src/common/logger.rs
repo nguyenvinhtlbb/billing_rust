@@ -32,7 +32,7 @@ impl Logger {
         }
     }
 
-    pub async fn log(&self, message_type: LogMessageType, message: &str) {
+    pub async fn log(&self, log_to_file: bool, message_type: LogMessageType, message: &str) {
         let time_tag = format!("[{}]", Local::now().format("%F %T"));
         let message = format!(
             "[{}]: {}",
@@ -44,11 +44,15 @@ impl Logger {
             },
             message
         );
-        let full_message = format!("{}{}\n", &time_tag, &message);
-        join!(
-            self.show_message(message_type, &time_tag, &message),
-            self.log_to_file(&full_message)
-        );
+        if log_to_file {
+            let full_message = format!("{}{}\n", &time_tag, &message);
+            join!(
+                self.show_message(message_type, &time_tag, &message),
+                self.log_to_file(&full_message)
+            );
+        } else {
+            self.show_message(message_type, &time_tag, &message).await;
+        }
     }
 
     async fn log_to_file(&self, message: &str) {
@@ -111,14 +115,20 @@ impl Logger {
 }
 
 /// 用于日志发送的sender
-pub type LoggerSender = Sender<(LogMessageType, String)>;
+/// (是否记录到文件,类型,消息)
+pub type LoggerSender = Sender<(bool, LogMessageType, String)>;
 /// 输出日志
 #[macro_export]
 macro_rules! log_message {
-    ($logger_sender:expr,$message_type:ident, $($args:tt)*) => {
+    //可选择是否输出到文件
+    ($logger_sender:expr,$log_to_file:tt,$message_type:ident, $($args:tt)*) => {
         let message = format!($($args)*);
-        if let Err(err) = $logger_sender.send(($crate::common::LogMessageType::$message_type,message)).await{
+        if let Err(err) = $logger_sender.send(($log_to_file,$crate::common::LogMessageType::$message_type,message)).await{
             eprintln!("logger dropped: {}",err);
         }
+    };
+    //默认输出到文件
+    ($logger_sender:expr,$message_type:ident, $($args:tt)*) =>{
+        $crate::log_message!($logger_sender,true,$message_type,$($args)*)
     };
 }
