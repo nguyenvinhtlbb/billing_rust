@@ -2,22 +2,20 @@ use crate::common::{
     AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
 };
 use crate::log_message;
-use crate::services::{decode_role_name, read_buffer_slice};
+use crate::services;
 use async_trait::async_trait;
 use std::str;
 
-use tokio::sync::Mutex;
-
 pub struct EnterGameHandler {
     auth_users_collection: AuthUsersCollection,
-    logger_sender: Mutex<LoggerSender>,
+    logger_sender: LoggerSender,
 }
 
 impl EnterGameHandler {
     pub fn new(auth_users_collection: AuthUsersCollection, logger_sender: LoggerSender) -> Self {
         EnterGameHandler {
             auth_users_collection,
-            logger_sender: Mutex::new(logger_sender),
+            logger_sender,
         }
     }
 }
@@ -28,18 +26,17 @@ impl BillingHandler for EnterGameHandler {
         0xA3
     }
 
-    async fn get_response(&self, request: &BillingData) -> Result<BillingData, ResponseError> {
+    async fn get_response(&mut self, request: &BillingData) -> Result<BillingData, ResponseError> {
         let offset = 0;
         let request_op_data = request.op_data.as_slice();
         //用户名
-        let (username, offset) = read_buffer_slice(request_op_data, offset);
+        let (username, offset) = services::read_buffer_slice(request_op_data, offset);
         let username_str = str::from_utf8(username).unwrap();
         //角色名
-        let (role_nickname, _) = read_buffer_slice(request_op_data, offset);
-        let role_name_str = decode_role_name(role_nickname);
-        let mut logger_sender = self.logger_sender.lock().await;
+        let (role_nickname, _) = services::read_buffer_slice(request_op_data, offset);
+        let role_name_str = services::decode_role_name(role_nickname);
         log_message!(
-            logger_sender,
+            self.logger_sender,
             Info,
             "user [{}] {} entered game",
             username_str,

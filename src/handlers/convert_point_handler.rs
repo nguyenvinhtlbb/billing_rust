@@ -3,19 +3,17 @@ use crate::common::{
 };
 use crate::log_message;
 use crate::models::Account;
-use crate::services::{decode_role_name, read_buffer_slice};
+use crate::services;
 use async_trait::async_trait;
 use mysql_async::Pool;
 use std::cmp::min;
 use std::str;
 
-use tokio::sync::Mutex;
-
 pub struct ConvertPointHandler {
     db_pool: Pool,
     convert_number: i32,
     auth_users_collection: AuthUsersCollection,
-    logger_sender: Mutex<LoggerSender>,
+    logger_sender: LoggerSender,
 }
 
 impl ConvertPointHandler {
@@ -29,7 +27,7 @@ impl ConvertPointHandler {
             db_pool,
             convert_number,
             auth_users_collection,
-            logger_sender: Mutex::new(logger_sender),
+            logger_sender,
         }
     }
 }
@@ -40,15 +38,15 @@ impl BillingHandler for ConvertPointHandler {
         0xE1
     }
 
-    async fn get_response(&self, request: &BillingData) -> Result<BillingData, ResponseError> {
+    async fn get_response(&mut self, request: &BillingData) -> Result<BillingData, ResponseError> {
         let offset = 0;
         let request_op_data = request.op_data.as_slice();
         //用户名
-        let (username, offset) = read_buffer_slice(request_op_data, offset);
+        let (username, offset) = services::read_buffer_slice(request_op_data, offset);
         //登录IP
-        let (client_ip, offset) = read_buffer_slice(request_op_data, offset);
+        let (client_ip, offset) = services::read_buffer_slice(request_op_data, offset);
         //角色名
-        let (role_nickname, offset) = read_buffer_slice(request_op_data, offset);
+        let (role_nickname, offset) = services::read_buffer_slice(request_op_data, offset);
         //order id
         let (order_id_bytes, offset) = {
             let item_length = 21;
@@ -90,9 +88,8 @@ impl BillingHandler for ConvertPointHandler {
                 None => 0,
             },
             Err(err) => {
-                let mut logger_sender = self.logger_sender.lock().await;
                 log_message!(
-                    logger_sender,
+                    self.logger_sender,
                     Error,
                     "get account {} info error {}",
                     username_str,
@@ -113,9 +110,8 @@ impl BillingHandler for ConvertPointHandler {
         {
             Ok(_) => cost_point,
             Err(err) => {
-                let mut logger_sender = self.logger_sender.lock().await;
                 log_message!(
-                    logger_sender,
+                    self.logger_sender,
                     Error,
                     "account {} convert point error {}",
                     username_str,
@@ -128,13 +124,12 @@ impl BillingHandler for ConvertPointHandler {
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::set_auth_user(auth_users_guard, username_str, true);
         let client_ip_str = str::from_utf8(client_ip).unwrap();
-        let mut logger_sender = self.logger_sender.lock().await;
         log_message!(
-            logger_sender,
+            self.logger_sender,
             Info,
             "user [{}] {}(ip: {}) point total [{}], need point [{}]: {}-{}={}",
             username_str,
-            decode_role_name(role_nickname),
+            services::decode_role_name(role_nickname),
             client_ip_str,
             user_point_value,
             need_point,

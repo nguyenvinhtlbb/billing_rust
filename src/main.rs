@@ -1,6 +1,5 @@
 use billing_rust::common::BillConfig;
-use billing_rust::log_message;
-use billing_rust::{cli, services};
+use billing_rust::{cli, log_message, services};
 use std::env;
 
 use tokio::sync::mpsc;

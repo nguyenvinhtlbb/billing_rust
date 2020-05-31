@@ -1,18 +1,13 @@
 use crate::common::{BillConfig, LoggerSender};
-use crate::log_message;
-use crate::services;
+use crate::{log_message, services};
 use tokio::net::TcpListener;
 use tokio::select;
 use tokio::sync::mpsc;
 
 mod accept_connection;
-mod shutdown_signal;
-
-use accept_connection::accept_connection;
-use shutdown_signal::shutdown_signal;
-
 mod make_handlers;
 mod on_client_connected;
+mod shutdown_signal;
 
 /// 运行服务器
 pub async fn run_server(server_config: BillConfig, mut logger_sender: LoggerSender) {
@@ -45,12 +40,12 @@ pub async fn run_server(server_config: BillConfig, mut logger_sender: LoggerSend
         &listen_address
     );
     //用于关闭服务的channel
-    let (tx, rx) = mpsc::channel::<u8>(1);
+    let (close_sender, close_receiver) = mpsc::channel::<u8>(1);
     select! {
-        _ = accept_connection(&mut listener,&db_pool,&server_config,tx,logger_sender.clone()) => {
+        _ = accept_connection::accept_connection(&mut listener,&db_pool,&server_config,close_sender,logger_sender.clone()) => {
             log_message!(logger_sender,Info,"listener stopped");
         }
-        value = shutdown_signal(rx) => {
+        value = shutdown_signal::shutdown_signal(close_receiver) => {
             let quit_way= match value{
                 1 => "billing server stopped(by signal)",
                 2 => "billing server stopped(by stop command)",

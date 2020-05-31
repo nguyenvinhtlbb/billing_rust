@@ -113,7 +113,7 @@ pub type LoggerSender = Sender<(LogMessageType, String)>;
 /// 输出日志
 #[macro_export]
 macro_rules! log_message {
-    ($logger_sender:ident,$message_type:ident, $($args:tt)*) => {
+    ($logger_sender:expr,$message_type:ident, $($args:tt)*) => {
         let message = format!($($args)*);
         if let Err(err) = $logger_sender.send(($crate::common::LogMessageType::$message_type,message)).await{
             eprintln!("logger dropped: {}",err);

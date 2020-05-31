@@ -9,7 +9,7 @@ impl BillingHandler for CostLogHandler {
         0xC5
     }
 
-    async fn get_response(&self, request: &BillingData) -> Result<BillingData, ResponseError> {
+    async fn get_response(&mut self, request: &BillingData) -> Result<BillingData, ResponseError> {
         let request_op_data = request.op_data.as_slice();
         let op_data = &request_op_data[..21];
         let mut response: BillingData = request.into();

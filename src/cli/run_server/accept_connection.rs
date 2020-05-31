@@ -11,7 +11,7 @@ pub(super) async fn accept_connection(
     listener: &mut TcpListener,
     db_pool: &Pool,
     server_config: &BillConfig,
-    tx: Sender<u8>,
+    close_sender: Sender<u8>,
     mut logger_sender: LoggerSender,
 ) {
     let stopped_flag = Arc::new(RwLock::new(false));
@@ -28,7 +28,7 @@ pub(super) async fn accept_connection(
             addr,
             db_pool,
             &server_config,
-            &tx,
+            &close_sender,
             stopped_flag.clone(),
             logger_sender.clone(),
         );

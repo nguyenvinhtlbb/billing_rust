@@ -23,7 +23,7 @@ macro_rules! add_handler {
 
 pub(super) fn make_handlers(
     server_config: &BillConfig,
-    tx: &Sender<u8>,
+    close_sender: &Sender<u8>,
     db_pool: &Pool,
     stopped_flag: &Arc<RwLock<bool>>,
     logger_sender: &LoggerSender,
@@ -36,7 +36,11 @@ pub(super) fn make_handlers(
     //向handlers Map中添加handler
     add_handler!(
         handlers,
-        CloseHandler::new(tx.clone(), stopped_flag.clone(), logger_sender.clone()),
+        CloseHandler::new(
+            close_sender.clone(),
+            stopped_flag.clone(),
+            logger_sender.clone()
+        ),
         ConnectHandler,
         PingHandler,
         LoginHandler::new(

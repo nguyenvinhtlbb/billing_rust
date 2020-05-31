@@ -9,8 +9,8 @@ use tokio::net::TcpStream;
 pub async fn process_client_data<S: std::hash::BuildHasher>(
     socket: &mut TcpStream,
     client_data: &mut Vec<u8>,
-    handlers: &HashMap<u8, Box<dyn BillingHandler>, S>,
-    mut logger_sender: LoggerSender,
+    handlers: &mut HashMap<u8, Box<dyn BillingHandler>, S>,
+    logger_sender: &mut LoggerSender,
 ) -> Result<(), ResponseError> {
     //循环读取
     loop {
@@ -33,7 +33,7 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
             log_message!(logger_sender, Debug, "request = {:?}", &billing_data);
         }
         //查找对应类型的handler
-        if let Some(bill_handler) = handlers.get(&billing_data.op_type) {
+        if let Some(bill_handler) = handlers.get_mut(&billing_data.op_type) {
             // 使用handler从request得到response
             let response = bill_handler.get_response(&billing_data).await?;
             //dbg!(&response);

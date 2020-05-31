@@ -3,17 +3,15 @@ use crate::common::{
 };
 use crate::log_message;
 use crate::models::Account;
-use crate::services::{decode_role_name, read_buffer_slice};
+use crate::services;
 use async_trait::async_trait;
 use mysql_async::Pool;
 use std::str;
 
-use tokio::sync::Mutex;
-
 pub struct QueryPointHandler {
     db_pool: Pool,
     auth_users_collection: AuthUsersCollection,
-    logger_sender: Mutex<LoggerSender>,
+    logger_sender: LoggerSender,
 }
 
 impl QueryPointHandler {
@@ -25,7 +23,7 @@ impl QueryPointHandler {
         QueryPointHandler {
             db_pool,
             auth_users_collection,
-            logger_sender: Mutex::new(logger_sender),
+            logger_sender,
         }
     }
 }
@@ -36,15 +34,15 @@ impl BillingHandler for QueryPointHandler {
         0xE2
     }
 
-    async fn get_response(&self, request: &BillingData) -> Result<BillingData, ResponseError> {
+    async fn get_response(&mut self, request: &BillingData) -> Result<BillingData, ResponseError> {
         let offset = 0;
         let request_op_data = request.op_data.as_slice();
         //用户名
-        let (username, offset) = read_buffer_slice(request_op_data, offset);
+        let (username, offset) = services::read_buffer_slice(request_op_data, offset);
         //登录IP
-        let (client_ip, offset) = read_buffer_slice(request_op_data, offset);
+        let (client_ip, offset) = services::read_buffer_slice(request_op_data, offset);
         //角色名
-        let (role_nickname, _offset) = read_buffer_slice(request_op_data, offset);
+        let (role_nickname, _offset) = services::read_buffer_slice(request_op_data, offset);
         //
         let username_str = str::from_utf8(username).unwrap();
         let client_ip_str = str::from_utf8(client_ip).unwrap();
@@ -56,10 +54,9 @@ impl BillingHandler for QueryPointHandler {
         //更新用户在线状态
         let auth_users_guard = self.auth_users_collection.write().await;
         AuthUser::set_auth_user(auth_users_guard, username_str, true);
-        let role_name_str = decode_role_name(role_nickname);
-        let mut logger_sender = self.logger_sender.lock().await;
+        let role_name_str = services::decode_role_name(role_nickname);
         log_message!(
-            logger_sender,
+            self.logger_sender,
             Info,
             "user [{}] {} query point ({}) at {}",
             username_str,

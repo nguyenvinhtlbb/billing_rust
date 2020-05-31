@@ -9,7 +9,7 @@ impl BillingHandler for PingHandler {
         0xA1
     }
 
-    async fn get_response(&self, request: &BillingData) -> Result<BillingData, ResponseError> {
+    async fn get_response(&mut self, request: &BillingData) -> Result<BillingData, ResponseError> {
         let mut response: BillingData = request.into();
         response.op_data.extend_from_slice(&[0x01, 0x00]);
         Ok(response)

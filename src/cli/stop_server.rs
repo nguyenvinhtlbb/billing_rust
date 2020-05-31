@@ -1,6 +1,5 @@
 use crate::common::{BillConfig, BillingData, LoggerSender};
 use crate::log_message;
-
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 

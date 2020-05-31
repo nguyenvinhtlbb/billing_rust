@@ -9,7 +9,7 @@ impl BillingHandler for KickHandler {
         0xA9
     }
 
-    async fn get_response(&self, request: &BillingData) -> Result<BillingData, ResponseError> {
+    async fn get_response(&mut self, request: &BillingData) -> Result<BillingData, ResponseError> {
         let mut response: BillingData = request.into();
         response.op_data.push(0x01);
         Ok(response)

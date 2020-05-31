@@ -1,27 +1,26 @@
 use crate::common::{BillConfig, LoggerSender, ResponseError};
 use crate::log_message;
+use crate::services;
 use mysql_async::Pool;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::RwLock;
-
-use crate::services;
-use tokio::io::AsyncReadExt;
 
 pub(super) fn on_client_connected(
     mut socket: TcpStream,
     client_address: SocketAddr,
     db_pool: &Pool,
     server_config: &BillConfig,
-    tx: &Sender<u8>,
+    close_sender: &Sender<u8>,
     stopped_flag: Arc<RwLock<bool>>,
     mut logger_sender: LoggerSender,
 ) {
-    let handlers = super::make_handlers::make_handlers(
+    let mut handlers = super::make_handlers::make_handlers(
         server_config,
-        &tx,
+        &close_sender,
         &db_pool,
         &stopped_flag,
         &logger_sender,
@@ -66,8 +65,8 @@ pub(super) fn on_client_connected(
             if let Err(err) = services::process_client_data(
                 &mut socket,
                 &mut client_data,
-                &handlers,
-                logger_sender.clone(),
+                &mut handlers,
+                &mut logger_sender,
             )
             .await
             {
