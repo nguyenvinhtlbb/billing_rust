@@ -29,9 +29,15 @@ async fn main() {
     //dbg!(&server_config);
     let cli_args: Vec<String> = env::args().collect();
     if cli_args.len() > 1 {
-        let command_str = cli_args.get(1).unwrap();
-        if command_str == "stop" {
-            cli::stop_server(server_config, logger_sender).await;
+        let command_str = cli_args[1].as_str();
+        if let "stop" | "-d" = command_str {
+            if let "stop" = command_str {
+                //停止服务的命令
+                cli::stop_server(server_config, logger_sender).await;
+            } else if let "-d" = command_str {
+                //后台运行的命令
+                services::run_at_background(&cli_args[0], logger_sender).await;
+            }
             logger_service.await.unwrap();
             return;
         }

@@ -36,12 +36,16 @@ pub(super) fn on_client_connected(
                 // socket closed
                 Ok(n) => {
                     if n == 0 {
-                        log_message!(
-                            logger_sender,
-                            Error,
-                            "client {} disconnected",
-                            &client_address
-                        );
+                        // 如果是主动停止服务的,则忽略错误
+                        let stopped_flag_guard = stopped_flag.read().await;
+                        if !*stopped_flag_guard {
+                            log_message!(
+                                logger_sender,
+                                Error,
+                                "client {} disconnected",
+                                &client_address
+                            );
+                        }
                         return;
                     }
                     n

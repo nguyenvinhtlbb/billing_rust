@@ -33,10 +33,9 @@ impl Logger {
     }
 
     pub async fn log(&self, message_type: LogMessageType, message: &str) {
-        let time_now = Local::now();
-        let message = &format!(
-            "[{}][{}]: {}\n",
-            time_now.format("%F %T"),
+        let time_tag = format!("[{}]", Local::now().format("%F %T"));
+        let message = format!(
+            "[{}]: {}",
             match message_type {
                 LogMessageType::Error => "error",
                 LogMessageType::Warning => "warning",
@@ -45,9 +44,10 @@ impl Logger {
             },
             message
         );
+        let full_message = format!("{}{}\n", &time_tag, &message);
         join!(
-            self.show_message(message_type, message),
-            self.log_to_file(message)
+            self.show_message(message_type, &time_tag, &message),
+            self.log_to_file(&full_message)
         );
     }
 
@@ -77,38 +77,40 @@ impl Logger {
         }
     }
 
-    async fn show_message(&self, message_type: LogMessageType, message: &str) {
+    async fn show_message(&self, message_type: LogMessageType, time_tag: &str, message: &str) {
         let mut color_spec = ColorSpec::new();
         let buffer_writer = match message_type {
-            LogMessageType::Error => {
-                color_spec.set_fg(Some(Color::Red));
-                &self.stderr
-            }
-            LogMessageType::Warning => {
-                color_spec.set_fg(Some(Color::Yellow));
-                &self.stderr
-            }
-            LogMessageType::Info => {
-                color_spec.set_fg(Some(Color::Green));
-                &self.stdout
-            }
-            LogMessageType::Debug => {
-                color_spec.set_fg(Some(Color::Cyan));
-                &self.stdout
-            }
+            LogMessageType::Error | LogMessageType::Warning => &self.stderr,
+            _ => &self.stdout,
         };
         let mut buffer = buffer_writer.buffer();
+        // 时间
+        write!(&mut buffer, "{}", time_tag).unwrap();
+        // 类型颜色
+        match message_type {
+            LogMessageType::Error => color_spec.set_fg(Some(Color::Red)),
+            LogMessageType::Warning => color_spec.set_fg(Some(Color::Yellow)),
+            LogMessageType::Info => color_spec.set_fg(Some(Color::Green)),
+            LogMessageType::Debug => color_spec.set_fg(Some(Color::Cyan)),
+        };
         if let Err(err) = buffer.set_color(&color_spec) {
             eprintln!("failed to set color: {}", err);
         }
         write!(&mut buffer, "{}", message).unwrap();
+        //重置输出样式
+        if let Err(err) = buffer.reset() {
+            eprintln!("failed to reset color: {}", err);
+        }
+        //换行符
+        writeln!(&mut buffer).unwrap();
+        //输出
         if let Err(err) = buffer_writer.print(&buffer) {
             eprintln!("failed to output buffer: {}", err);
         }
-        buffer.reset().unwrap();
     }
 }
 
+/// 用于日志发送的sender
 pub type LoggerSender = Sender<(LogMessageType, String)>;
 /// 输出日志
 #[macro_export]
