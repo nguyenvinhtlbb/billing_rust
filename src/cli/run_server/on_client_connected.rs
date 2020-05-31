@@ -25,6 +25,7 @@ pub(super) fn on_client_connected(
         &stopped_flag,
         &logger_sender,
     );
+    let debug_type = server_config.debug_type();
     tokio::spawn(async move {
         log_message!(logger_sender, Info, "client {} connected", &client_address);
         let mut buf = [0; 1024];
@@ -67,6 +68,7 @@ pub(super) fn on_client_connected(
                 &mut client_data,
                 &mut handlers,
                 &mut logger_sender,
+                debug_type,
             )
             .await
             {

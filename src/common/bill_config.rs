@@ -1,4 +1,5 @@
 use super::BillConfigError;
+use crate::common::BillDebugType;
 use serde::Deserialize;
 use std::path::Path;
 use tokio::fs;
@@ -17,6 +18,7 @@ pub struct BillConfig {
     auto_reg: bool,
     allow_ips: Vec<String>,
     transfer_number: i32,
+    debug_type: BillDebugType,
 }
 
 impl Default for BillConfig {
@@ -32,6 +34,7 @@ impl Default for BillConfig {
             auto_reg: true,
             allow_ips: vec![],
             transfer_number: 1000,
+            debug_type: BillDebugType::default(),
         }
     }
 }
@@ -99,5 +102,9 @@ impl BillConfig {
 
     pub fn transfer_number(&self) -> i32 {
         self.transfer_number
+    }
+
+    pub fn debug_type(&self) -> BillDebugType {
+        self.debug_type
     }
 }

@@ -8,5 +8,6 @@
   "db_name": "web",
   "auto_reg": true,
   "allow_ips": [],
-  "transfer_number": 1000
+  "transfer_number": 1000,
+  "debug_type": 0
 }

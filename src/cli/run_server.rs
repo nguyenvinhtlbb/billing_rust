@@ -7,11 +7,13 @@ use tokio::sync::mpsc;
 mod accept_connection;
 mod make_handlers;
 mod on_client_connected;
-mod shutdown_signal;
+mod show_soft_info;
+mod wait_for_shutdown;
 
 /// 运行服务器
 pub async fn run_server(server_config: BillConfig, mut logger_sender: LoggerSender) {
-    //dbg!(&server_config);
+    //输出软件信息
+    show_soft_info::show_soft_info(&mut logger_sender).await;
     //创建tcp服务器
     let listen_address = server_config.listen_address();
     let mut listener = match TcpListener::bind(&listen_address).await {
@@ -45,7 +47,7 @@ pub async fn run_server(server_config: BillConfig, mut logger_sender: LoggerSend
         _ = accept_connection::accept_connection(&mut listener,&db_pool,&server_config,close_sender,logger_sender.clone()) => {
             log_message!(logger_sender,Info,"listener stopped");
         }
-        value = shutdown_signal::shutdown_signal(close_receiver) => {
+        value = wait_for_shutdown::wait_for_shutdown(close_receiver) => {
             let quit_way= match value{
                 1 => "billing server stopped(by signal)",
                 2 => "billing server stopped(by stop command)",

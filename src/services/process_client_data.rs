@@ -1,4 +1,6 @@
-use crate::common::{BillingData, BillingHandler, LoggerSender, ParsePackError, ResponseError};
+use crate::common::{
+    BillDebugType, BillingData, BillingHandler, LoggerSender, ParsePackError, ResponseError,
+};
 use crate::log_message;
 use std::collections::HashMap;
 
@@ -11,6 +13,7 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
     client_data: &mut Vec<u8>,
     handlers: &mut HashMap<u8, Box<dyn BillingHandler>, S>,
     logger_sender: &mut LoggerSender,
+    debug_type: BillDebugType,
 ) -> Result<(), ResponseError> {
     //循环读取
     loop {
@@ -28,9 +31,12 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
         //将读取到的字节数据移出
         let new_slice = client_data.as_slice();
         *client_data = Vec::from(&new_slice[full_pack_size..]);
-        //用于调试,打印除了0xA1类型的BillingData请求
-        if billing_data.op_type != 0xA1 {
-            log_message!(logger_sender, Debug, "request = {:?}", &billing_data);
+        //调试模式: 显示请求的数据包
+        if debug_type != BillDebugType::NoDebug {
+            //full或者不为Ping类信息时,打印数据包
+            if debug_type == BillDebugType::Full || billing_data.op_type != 0xA1 {
+                log_message!(logger_sender, Debug, "request = {:?}", &billing_data);
+            }
         }
         //查找对应类型的handler
         if let Some(bill_handler) = handlers.get_mut(&billing_data.op_type) {

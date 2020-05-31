@@ -3,7 +3,14 @@ name = "billing_rust"
 version = "0.1.0"
 authors = ["流光 <67579722@qq.com>"]
 edition = "2018"
+license = "MIT"
+publish = false
 build = "build.rs"
+
+[[bin]]
+#output executable name
+name = "billing"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,6 +20,7 @@ async-trait = "0.1"
 termcolor = "1.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_repr = "0.1"
 mysql_async = "0.23.1"
 encoding_rs = "0.8.23"
 chrono = "0.4.11"
