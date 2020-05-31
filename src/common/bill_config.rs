@@ -107,4 +107,8 @@ impl BillConfig {
     pub fn debug_type(&self) -> BillDebugType {
         self.debug_type
     }
+
+    pub fn allow_ips(&self) -> &[String] {
+        &self.allow_ips
+    }
 }

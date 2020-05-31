@@ -2,6 +2,7 @@ use crate::common::{BillConfig, LoggerSender};
 use crate::{log_message, services};
 use tokio::net::TcpListener;
 use tokio::select;
+use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
 mod accept_connection;
@@ -43,11 +44,17 @@ pub async fn run_server(server_config: BillConfig, mut logger_sender: LoggerSend
     );
     //用于关闭服务的channel
     let (close_sender, close_receiver) = mpsc::channel::<u8>(1);
+    //用于通知所有的连接进行关闭的channel
+    let (notify_sender, _) = broadcast::channel::<u8>(1);
     select! {
-        _ = accept_connection::accept_connection(&mut listener,&db_pool,&server_config,close_sender,logger_sender.clone()) => {
+        _ = accept_connection::accept_connection(&mut listener,&db_pool,&server_config,close_sender,logger_sender.clone(),&notify_sender) => {
             log_message!(logger_sender,Info,"listener stopped");
         }
         value = wait_for_shutdown::wait_for_shutdown(close_receiver) => {
+            //通知所有的连接进行关闭,如果不进行通知,那么已建立的TCP连接可能会卡在socket.read(...),导致程序无法退出
+            if notify_sender.send(0).is_err() {
+                log_message!(logger_sender, Error, "notify close error");
+            }
             let quit_way= match value{
                 1 => "billing server stopped(by signal)",
                 2 => "billing server stopped(by stop command)",
@@ -55,5 +62,9 @@ pub async fn run_server(server_config: BillConfig, mut logger_sender: LoggerSend
             };
             log_message!(logger_sender,Info,"{}",quit_way);
         }
+    }
+    //释放连接池
+    if let Err(err) = db_pool.disconnect().await {
+        log_message!(logger_sender, Info, "free database error: {}", err);
     }
 }
