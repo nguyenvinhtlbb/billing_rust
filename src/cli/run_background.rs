@@ -4,9 +4,9 @@ use std::process::Stdio;
 use tokio::process::Command;
 
 /// 使程序在后台运行
-pub async fn run_at_background(exe_path: &str, mut logger_sender: LoggerSender) {
+pub async fn run_background(exe_path: &str, mut logger_sender: LoggerSender) {
     let mut command = Command::new(exe_path);
-    command.stdout(Stdio::null());
+    command.args(&["up"]).stdout(Stdio::null());
     #[cfg(windows)]
     {
         // for windows

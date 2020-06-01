@@ -4,18 +4,16 @@ use mysql_async::Pool;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::stream::StreamExt;
-use tokio::sync::broadcast::Sender as NotifySender;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::RwLock;
 
 /// 接受TCP连接
 pub(super) async fn accept_connection(
-    listener: &mut TcpListener,
+    mut listener: TcpListener,
     db_pool: &Pool,
-    server_config: &BillConfig,
+    server_config: BillConfig,
     close_sender: Sender<u8>,
     mut logger_sender: LoggerSender,
-    notify_receiver: &NotifySender<u8>,
 ) {
     let stopped_flag = Arc::new(RwLock::new(false));
     let mut incoming = listener.incoming();
@@ -32,22 +30,21 @@ pub(super) async fn accept_connection(
                         continue;
                     }
                 }
+                let debug_type = server_config.debug_type();
                 let handlers = super::make_handlers::make_handlers(
-                    server_config,
+                    &server_config,
                     &close_sender,
                     &db_pool,
                     &stopped_flag,
                     &logger_sender,
                 );
-                let debug_type = server_config.debug_type();
                 //在后台处理新的连接
                 tokio::spawn(super::on_client_connected::on_client_connected(
                     socket,
-                    notify_receiver.subscribe(),
+                    addr,
                     logger_sender.clone(),
                     handlers,
                     stopped_flag.clone(),
-                    addr,
                     debug_type,
                 ));
             }

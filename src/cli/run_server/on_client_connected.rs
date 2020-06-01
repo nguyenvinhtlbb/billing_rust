@@ -4,19 +4,16 @@ use crate::services;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::io::{self, AsyncReadExt};
+use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
-use tokio::select;
-use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 
 pub(super) async fn on_client_connected(
     mut socket: TcpStream,
-    mut notify_receiver: Receiver<u8>,
+    client_address: SocketAddr,
     mut logger_sender: LoggerSender,
     mut handlers: HashMap<u8, Box<dyn BillingHandler>>,
     stopped_flag: Arc<RwLock<bool>>,
-    client_address: SocketAddr,
     debug_type: BillDebugType,
 ) {
     log_message!(logger_sender, Info, "client {} connected", &client_address);
@@ -24,17 +21,7 @@ pub(super) async fn on_client_connected(
     let mut client_data: Vec<u8> = vec![];
     // In a loop, read data from the client
     loop {
-        let read_result: io::Result<usize>;
-        select! {
-            //读取到结果
-            value = socket.read(&mut buf)=>{
-                read_result = value;
-            },
-            //服务已被停止
-            _=notify_receiver.recv()=>{
-                return;
-            }
-        }
+        let read_result = socket.read(&mut buf).await;
         let n = match read_result {
             // socket closed
             Err(_) | Ok(0) => {

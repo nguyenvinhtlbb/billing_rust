@@ -2,7 +2,9 @@ use billing_rust::common::BillConfig;
 use billing_rust::log_message;
 use billing_rust::{cli, services};
 use std::env;
+use std::time::Duration;
 use tokio::sync::mpsc;
+use tokio::time;
 
 #[tokio::main]
 async fn main() {
@@ -28,20 +30,44 @@ async fn main() {
     };
     //dbg!(&server_config);
     let cli_args: Vec<String> = env::args().collect();
-    if cli_args.len() > 1 {
-        let command_str = cli_args[1].as_str();
-        if let "stop" | "-d" = command_str {
-            if let "stop" = command_str {
-                //停止服务的命令
-                cli::stop_server(server_config, logger_sender).await;
-            } else if let "-d" = command_str {
-                //后台运行的命令
-                services::run_at_background(&cli_args[0], logger_sender).await;
-            }
+    let arg_length = cli_args.len();
+    let first_command = if arg_length > 1 {
+        cli_args[1].as_str()
+    } else {
+        ""
+    };
+    match first_command {
+        "stop" => {
+            //停止服务的命令
+            cli::stop_server(server_config, logger_sender).await;
             logger_service.await.unwrap();
-            return;
         }
-    }
-    cli::run_server(server_config, logger_sender).await;
-    logger_service.await.unwrap();
+        "up" => {
+            let run_at_background = if arg_length > 2 {
+                let extra_command = &cli_args[2];
+                extra_command == "-d"
+            } else {
+                false
+            };
+            if run_at_background {
+                cli::run_background(&cli_args[0], logger_sender).await;
+                logger_service.await.unwrap();
+            } else {
+                cli::run_server(server_config, logger_sender).await;
+                tokio::select! {
+                    //wait for logger service stopped
+                    _=logger_service=>{
+                    },
+                    //or timeout force stop
+                    _=time::delay_for(Duration::from_millis(900)) =>{
+                    }
+                }
+            }
+        }
+        _ => {
+            cli::show_usage();
+            drop(logger_sender);
+            logger_service.await.unwrap();
+        }
+    };
 }
