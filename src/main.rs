@@ -1,4 +1,4 @@
-use billing_rust::common::BillConfig;
+use billing_rust::common::{BillConfig, CliCommandType};
 use billing_rust::log_message;
 use billing_rust::{cli, services};
 use std::env;
@@ -29,42 +29,33 @@ async fn main() {
         }
     };
     //dbg!(&server_config);
-    let cli_args: Vec<String> = env::args().collect();
-    let arg_length = cli_args.len();
-    let first_command = if arg_length > 1 {
-        cli_args[1].as_str()
-    } else {
-        ""
-    };
-    match first_command {
-        "stop" => {
-            //停止服务的命令
+    let mut cli_args = env::args();
+    let exe_path = cli_args.next().unwrap();
+    match CliCommandType::from(&mut cli_args) {
+        CliCommandType::StopServer => {
+            //停止服务
             cli::stop_server(server_config, logger_sender).await;
             logger_service.await.unwrap();
         }
-        "up" => {
-            let run_at_background = if arg_length > 2 {
-                let extra_command = &cli_args[2];
-                extra_command == "-d"
-            } else {
-                false
-            };
-            if run_at_background {
-                cli::run_background(&cli_args[0], logger_sender).await;
-                logger_service.await.unwrap();
-            } else {
-                cli::run_server(server_config, logger_sender).await;
-                tokio::select! {
-                    //wait for logger service stopped
-                    _=logger_service=>{
-                    },
-                    //or timeout force stop
-                    _=time::delay_for(Duration::from_millis(900)) =>{
-                    }
+        CliCommandType::RunServer => {
+            //启动服务器(前台模式)
+            cli::run_server(server_config, logger_sender).await;
+            tokio::select! {
+                //wait for logger service stopped
+                _=logger_service=>{
+                },
+                //or timeout force stop
+                _=time::delay_for(Duration::from_millis(900)) =>{
                 }
             }
         }
-        _ => {
+        CliCommandType::RunServerAtBackground => {
+            //启动服务器(后台模式)
+            cli::run_background(&exe_path, logger_sender).await;
+            logger_service.await.unwrap();
+        }
+        CliCommandType::ShowUsage => {
+            //命令行说明
             cli::show_usage();
             drop(logger_sender);
             logger_service.await.unwrap();

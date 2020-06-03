@@ -1,5 +1,5 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
+    BillingData, BillingHandler, LoggedUser, LoggedUserCollection, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::services;
@@ -10,7 +10,7 @@ use std::str;
 pub struct LoginHandler {
     db_pool: Pool,
     auto_reg: bool,
-    auth_users_collection: AuthUsersCollection,
+    logged_users_collection: LoggedUserCollection,
     logger_sender: LoggerSender,
 }
 
@@ -18,13 +18,13 @@ impl LoginHandler {
     pub fn new(
         db_pool: Pool,
         auto_reg: bool,
-        auth_users_collection: AuthUsersCollection,
+        logged_users_collection: LoggedUserCollection,
         logger_sender: LoggerSender,
     ) -> Self {
         LoginHandler {
             db_pool,
             auto_reg,
-            auth_users_collection,
+            logged_users_collection,
             logger_sender,
         }
     }
@@ -66,14 +66,14 @@ impl BillingHandler for LoginHandler {
         let login_ip_str = str::from_utf8(login_ip).unwrap();
         // 登录成功
         if login_flag == 1 {
-            let auth_users_guard = self.auth_users_collection.read().await;
+            let logged_users_guard = self.logged_users_collection.read().await;
             // 有角色在线
-            if AuthUser::is_role_online(auth_users_guard, username_str) {
+            if LoggedUser::is_role_online(logged_users_guard, username_str) {
                 login_flag = 4;
             } else {
                 //更新用户状态
-                let auth_users_guard = self.auth_users_collection.write().await;
-                AuthUser::set_auth_user(auth_users_guard, username_str, false);
+                let logged_users_guard = self.logged_users_collection.write().await;
+                LoggedUser::set_logged_user(logged_users_guard, username_str, false);
             }
         }
         // 未启用自动注册

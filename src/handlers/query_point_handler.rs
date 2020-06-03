@@ -1,5 +1,5 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
+    BillingData, BillingHandler, LoggedUser, LoggedUserCollection, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::models::Account;
@@ -10,19 +10,19 @@ use std::str;
 
 pub struct QueryPointHandler {
     db_pool: Pool,
-    auth_users_collection: AuthUsersCollection,
+    logged_users_collection: LoggedUserCollection,
     logger_sender: LoggerSender,
 }
 
 impl QueryPointHandler {
     pub fn new(
         db_pool: Pool,
-        auth_users_collection: AuthUsersCollection,
+        logged_users_collection: LoggedUserCollection,
         logger_sender: LoggerSender,
     ) -> Self {
         QueryPointHandler {
             db_pool,
-            auth_users_collection,
+            logged_users_collection,
             logger_sender,
         }
     }
@@ -52,8 +52,8 @@ impl BillingHandler for QueryPointHandler {
             None => 0,
         };
         //更新用户在线状态
-        let auth_users_guard = self.auth_users_collection.write().await;
-        AuthUser::set_auth_user(auth_users_guard, username_str, true);
+        let logged_users_guard = self.logged_users_collection.write().await;
+        LoggedUser::set_logged_user(logged_users_guard, username_str, true);
         let role_name_str = services::decode_role_name(role_nickname);
         log_message!(
             self.logger_sender,

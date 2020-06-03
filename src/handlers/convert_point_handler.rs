@@ -1,5 +1,5 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
+    BillingData, BillingHandler, LoggedUser, LoggedUserCollection, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::models::Account;
@@ -12,7 +12,7 @@ use std::str;
 pub struct ConvertPointHandler {
     db_pool: Pool,
     convert_number: i32,
-    auth_users_collection: AuthUsersCollection,
+    logged_users_collection: LoggedUserCollection,
     logger_sender: LoggerSender,
 }
 
@@ -20,13 +20,13 @@ impl ConvertPointHandler {
     pub fn new(
         db_pool: Pool,
         convert_number: i32,
-        auth_users_collection: AuthUsersCollection,
+        logged_users_collection: LoggedUserCollection,
         logger_sender: LoggerSender,
     ) -> Self {
         ConvertPointHandler {
             db_pool,
             convert_number,
-            auth_users_collection,
+            logged_users_collection,
             logger_sender,
         }
     }
@@ -121,8 +121,8 @@ impl BillingHandler for ConvertPointHandler {
             }
         };
         //更新用户在线状态
-        let auth_users_guard = self.auth_users_collection.write().await;
-        AuthUser::set_auth_user(auth_users_guard, username_str, true);
+        let logged_users_guard = self.logged_users_collection.write().await;
+        LoggedUser::set_logged_user(logged_users_guard, username_str, true);
         let client_ip_str = str::from_utf8(client_ip).unwrap();
         log_message!(
             self.logger_sender,

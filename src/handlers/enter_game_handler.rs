@@ -1,5 +1,5 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
+    BillingData, BillingHandler, LoggedUser, LoggedUserCollection, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::services;
@@ -7,14 +7,14 @@ use async_trait::async_trait;
 use std::str;
 
 pub struct EnterGameHandler {
-    auth_users_collection: AuthUsersCollection,
+    logged_users_collection: LoggedUserCollection,
     logger_sender: LoggerSender,
 }
 
 impl EnterGameHandler {
-    pub fn new(auth_users_collection: AuthUsersCollection, logger_sender: LoggerSender) -> Self {
+    pub fn new(logged_users_collection: LoggedUserCollection, logger_sender: LoggerSender) -> Self {
         EnterGameHandler {
-            auth_users_collection,
+            logged_users_collection,
             logger_sender,
         }
     }
@@ -43,8 +43,8 @@ impl BillingHandler for EnterGameHandler {
             &role_name_str
         );
         //更新用户状态
-        let auth_users_guard = self.auth_users_collection.write().await;
-        AuthUser::set_auth_user(auth_users_guard, username_str, true);
+        let logged_users_guard = self.logged_users_collection.write().await;
+        LoggedUser::set_logged_user(logged_users_guard, username_str, true);
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
         response.op_data.extend_from_slice(username);

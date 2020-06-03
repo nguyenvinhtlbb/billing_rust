@@ -1,5 +1,5 @@
 use crate::common::{
-    AuthUser, AuthUsersCollection, BillingData, BillingHandler, LoggerSender, ResponseError,
+    BillingData, BillingHandler, LoggedUser, LoggedUserCollection, LoggerSender, ResponseError,
 };
 use crate::log_message;
 use crate::services;
@@ -7,14 +7,14 @@ use async_trait::async_trait;
 use std::str;
 
 pub struct LogoutHandler {
-    auth_users_collection: AuthUsersCollection,
+    logged_users_collection: LoggedUserCollection,
     logger_sender: LoggerSender,
 }
 
 impl LogoutHandler {
-    pub fn new(auth_users_collection: AuthUsersCollection, logger_sender: LoggerSender) -> Self {
+    pub fn new(logged_users_collection: LoggedUserCollection, logger_sender: LoggerSender) -> Self {
         LogoutHandler {
-            auth_users_collection,
+            logged_users_collection,
             logger_sender,
         }
     }
@@ -33,8 +33,8 @@ impl BillingHandler for LogoutHandler {
         let (username, _) = services::read_buffer_slice(request_op_data, offset);
         let username_str = str::from_utf8(username).unwrap();
         //更新在线状态
-        let auth_users_guard = self.auth_users_collection.write().await;
-        AuthUser::remove_user(auth_users_guard, username_str);
+        let logged_users_guard = self.logged_users_collection.write().await;
+        LoggedUser::remove_user(logged_users_guard, username_str);
         log_message!(
             self.logger_sender,
             Info,
