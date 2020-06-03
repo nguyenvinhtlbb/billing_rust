@@ -67,7 +67,7 @@ impl BillingHandler for QueryPointHandler {
         //
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
-        response.op_data.extend_from_slice(username);
+        response.op_data.extend(username);
         //返回值的处理
         let point_value = (point_value + 1) * 1000;
         //将point值拆分为4个u8

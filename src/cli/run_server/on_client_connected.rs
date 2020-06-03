@@ -53,7 +53,7 @@ pub(super) async fn on_client_connected(
             Ok(n) => n,
         };
         //将读取到数据附加到client_data后面
-        client_data.extend_from_slice(&buf[..n]);
+        client_data.extend(&buf[..n]);
         //处理读取到的数据,如果出现错误则直接返回(断开连接)
         if let Err(err) = services::process_client_data(
             &mut socket,

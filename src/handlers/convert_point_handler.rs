@@ -140,12 +140,10 @@ impl BillingHandler for ConvertPointHandler {
         //
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
-        response.op_data.extend_from_slice(username);
-        response.op_data.extend_from_slice(order_id_bytes);
-        response
-            .op_data
-            .extend_from_slice(&[0x00, 0x00, 0x00, 0x03, 0xE8]);
-        response.op_data.extend_from_slice(extra_data_bytes);
+        response.op_data.extend(username);
+        response.op_data.extend(order_id_bytes);
+        response.op_data.extend(&[0x00, 0x00, 0x00, 0x03, 0xE8]);
+        response.op_data.extend(extra_data_bytes);
         let tmp_data = ((cost_point & 0xff00) >> 8) as u8;
         response.op_data.push(tmp_data);
         let tmp_data = (cost_point & 0xff) as u8;

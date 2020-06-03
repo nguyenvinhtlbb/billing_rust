@@ -43,7 +43,7 @@ impl BillingHandler for LogoutHandler {
         );
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
-        response.op_data.extend_from_slice(username);
+        response.op_data.extend(username);
         response.op_data.push(0x01);
         Ok(response)
     }

@@ -47,7 +47,7 @@ impl BillingHandler for EnterGameHandler {
         LoggedUser::set_logged_user(logged_users_guard, username_str, true);
         let mut response: BillingData = request.into();
         response.op_data.push(username.len() as u8);
-        response.op_data.extend_from_slice(username);
+        response.op_data.extend(username);
         response.op_data.push(0x01);
         Ok(response)
     }

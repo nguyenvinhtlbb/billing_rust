@@ -33,7 +33,7 @@ impl BillingHandler for CloseHandler {
 
     async fn get_response(&mut self, request: &BillingData) -> Result<BillingData, ResponseError> {
         let mut response: BillingData = request.into();
-        response.op_data.extend_from_slice(&[0x00, 0x00]);
+        response.op_data.extend(&[0x00, 0x00]);
         {
             let mut stopped_flag_guard = self.stopped_flag.write().await;
             *stopped_flag_guard = true;

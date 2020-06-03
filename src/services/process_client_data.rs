@@ -28,9 +28,15 @@ pub async fn process_client_data<S: std::hash::BuildHasher>(
                     ParsePackError::BillingDataError => return Err(ResponseError::PackError),
                 },
             };
-        //将读取到的字节数据移出
-        let new_slice = client_data.as_slice();
-        *client_data = Vec::from(&new_slice[full_pack_size..]);
+        if client_data.len() == full_pack_size {
+            //已读完,清理client_data
+            client_data.clear();
+        } else {
+            let end_pos = client_data.len();
+            //copy
+            client_data.copy_within(full_pack_size..end_pos, 0);
+            client_data.resize(end_pos - full_pack_size, 0);
+        }
         //调试模式: 显示请求的数据包
         if debug_type != BillDebugType::NoDebug {
             //full或者不为Ping类信息时,打印数据包

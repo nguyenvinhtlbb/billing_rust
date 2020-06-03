@@ -66,7 +66,7 @@ impl BillingData {
         let mut result = Vec::with_capacity(self.op_data.len() + 9);
         let mask_data: [u8; 2] = [0xAA, 0x55];
         //头部字节
-        result.extend_from_slice(&mask_data);
+        result.extend(&mask_data);
         //长度高位
         let length_p = (3 + self.op_data.len()) as u16;
         let tmp_data = (length_p >> 8) as u8;
@@ -76,9 +76,9 @@ impl BillingData {
         result.push(tmp_data);
         // append data
         result.push(self.op_type);
-        result.extend_from_slice(&self.msg_id);
+        result.extend(&self.msg_id);
         if length_p > 3 {
-            result.extend_from_slice(self.op_data.as_slice());
+            result.extend(self.op_data.as_slice());
         }
         result.push(mask_data[1]);
         result.push(mask_data[0]);

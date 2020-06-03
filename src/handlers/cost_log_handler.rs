@@ -13,7 +13,7 @@ impl BillingHandler for CostLogHandler {
         let request_op_data = request.op_data.as_slice();
         let op_data = &request_op_data[..21];
         let mut response: BillingData = request.into();
-        response.op_data.extend_from_slice(op_data);
+        response.op_data.extend(op_data);
         response.op_data.push(0x01);
         Ok(response)
     }

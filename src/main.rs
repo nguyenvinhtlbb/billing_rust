@@ -42,11 +42,9 @@ async fn main() {
             cli::run_server(server_config, logger_sender).await;
             tokio::select! {
                 //wait for logger service stopped
-                _=logger_service=>{
-                },
+                _=logger_service=>{},
                 //or timeout force stop
-                _=time::delay_for(Duration::from_millis(900)) =>{
-                }
+                _=time::delay_for(Duration::from_millis(900)) =>{}
             }
         }
         CliCommandType::RunServerAtBackground => {
