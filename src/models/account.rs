@@ -1,9 +1,9 @@
-use mysql_async::prelude::Queryable;
-use mysql_async::Pool;
-use mysql_async::{params, Row};
+use sqlx::mysql::MySqlQueryAs;
+use sqlx::FromRow;
+use sqlx::MySqlPool;
 
 /// 用户账号模型
-#[derive(Debug, Default)]
+#[derive(Debug, Default, FromRow)]
 pub struct Account {
     id: i32,
     name: String,
@@ -16,72 +16,39 @@ pub struct Account {
     point: i32,
 }
 
-macro_rules! account_from_row {
-    ($row:ident,$($field_name:ident),*) => {
-        Account{
-        $(
-            //id: row.get("id").unwrap(),
-            $field_name:$row.get(stringify!($field_name)).unwrap(),
-        )*
-        }
-    };
-}
-
 impl Account {
     pub async fn get_by_username(
-        db_pool: &Pool,
+        db_pool: &MySqlPool,
         username: &str,
-    ) -> Result<Option<Account>, mysql_async::error::Error> {
-        let conn = db_pool.get_conn().await?;
-        let (_, query_result) = conn
-            .first_exec::<_, _, Row>(
-                "SELECT * FROM account WHERE name=:name",
-                params! {
-                    "name" => username
-                },
-            )
+    ) -> Result<Option<Account>, sqlx::Error> {
+        let account_info_option = sqlx::query_as("SELECT * FROM account WHERE name=?")
+            .bind(username)
+            .fetch_optional(db_pool)
             .await?;
-        let account_info_option = if let Some(row) = query_result {
-            Some(account_from_row!(
-                row, id, name, password, question, answer, email, qq, id_card, point
-            ))
-        } else {
-            None
-        };
         Ok(account_info_option)
     }
 
-    pub async fn insert_user(
-        db_pool: &Pool,
-        account_info: &Self,
-    ) -> Result<(), mysql_async::error::Error> {
-        let conn = db_pool.get_conn().await?;
-        let params = params! {
-            "name" => &account_info.name,
-            "password" => &account_info.password,
-            "question" => &account_info.question,
-            "email" => &account_info.email
-        };
-        conn.drop_exec("INSERT INTO account (name, password, question, email) VALUES (:name, :password, :question, :email)", params).await?;
+    pub async fn insert_user(db_pool: &MySqlPool, account_info: &Self) -> Result<(), sqlx::Error> {
+        sqlx::query("INSERT INTO account (name, password, question, email) VALUES (?,?,?,?)")
+            .bind(&account_info.name)
+            .bind(&account_info.password)
+            .bind(&account_info.question)
+            .bind(&account_info.email)
+            .execute(db_pool)
+            .await?;
         Ok(())
     }
 
     pub async fn convert_point(
         username: &str,
-        db_pool: &Pool,
+        db_pool: &MySqlPool,
         point: i32,
-    ) -> Result<(), mysql_async::error::Error> {
-        let conn = db_pool.get_conn().await?;
-        let params = params! {
-            "name" => username,
-            "point" => point
-        };
-        conn.drop_exec(
-            "UPDATE account SET point=point-:point WHERE name=:name",
-            params,
-        )
-        .await?;
-
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE account SET point=point-? WHERE name=?")
+            .bind(point)
+            .bind(username)
+            .execute(db_pool)
+            .await?;
         Ok(())
     }
 

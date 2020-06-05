@@ -6,11 +6,11 @@ pub enum ResponseError {
     /// 数据包错误
     PackError,
     /// 数据库出错
-    DatabaseError(mysql_async::error::Error),
+    DatabaseError(sqlx::Error),
 }
 
-impl From<mysql_async::error::Error> for ResponseError {
-    fn from(err: mysql_async::error::Error) -> Self {
+impl From<sqlx::Error> for ResponseError {
+    fn from(err: sqlx::Error) -> Self {
         ResponseError::DatabaseError(err)
     }
 }

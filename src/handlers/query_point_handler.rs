@@ -5,18 +5,18 @@ use crate::log_message;
 use crate::models::Account;
 use crate::services;
 use async_trait::async_trait;
-use mysql_async::Pool;
+use sqlx::MySqlPool;
 use std::str;
 
 pub struct QueryPointHandler {
-    db_pool: Pool,
+    db_pool: MySqlPool,
     logged_users_collection: LoggedUserCollection,
     logger_sender: LoggerSender,
 }
 
 impl QueryPointHandler {
     pub fn new(
-        db_pool: Pool,
+        db_pool: MySqlPool,
         logged_users_collection: LoggedUserCollection,
         logger_sender: LoggerSender,
     ) -> Self {

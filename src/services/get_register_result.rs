@@ -1,14 +1,14 @@
 use crate::models::Account;
-use mysql_async::Pool;
+use sqlx::MySqlPool;
 
 /// 获取注册结果
 pub async fn get_register_result(
-    db_pool: &Pool,
+    db_pool: &MySqlPool,
     username: &str,
     password: &str,
     super_password: &str,
     email: &str,
-) -> Result<u8, mysql_async::error::Error> {
+) -> Result<u8, sqlx::Error> {
     let reg_err_code = 4u8;
     match Account::get_by_username(db_pool, username).await? {
         //用户账号已存在

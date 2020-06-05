@@ -2,16 +2,16 @@ use crate::common::{BillingData, BillingHandler, LoggerSender, ResponseError};
 use crate::log_message;
 use crate::services;
 use async_trait::async_trait;
-use mysql_async::Pool;
+use sqlx::MySqlPool;
 use std::str;
 
 pub struct RegisterHandler {
-    db_pool: Pool,
+    db_pool: MySqlPool,
     logger_sender: LoggerSender,
 }
 
 impl RegisterHandler {
-    pub fn new(db_pool: Pool, logger_sender: LoggerSender) -> Self {
+    pub fn new(db_pool: MySqlPool, logger_sender: LoggerSender) -> Self {
         RegisterHandler {
             db_pool,
             logger_sender,

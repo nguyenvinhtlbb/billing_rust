@@ -5,12 +5,12 @@ use crate::log_message;
 use crate::models::Account;
 use crate::services;
 use async_trait::async_trait;
-use mysql_async::Pool;
+use sqlx::MySqlPool;
 use std::cmp::min;
 use std::str;
 
 pub struct ConvertPointHandler {
-    db_pool: Pool,
+    db_pool: MySqlPool,
     convert_number: i32,
     logged_users_collection: LoggedUserCollection,
     logger_sender: LoggerSender,
@@ -18,7 +18,7 @@ pub struct ConvertPointHandler {
 
 impl ConvertPointHandler {
     pub fn new(
-        db_pool: Pool,
+        db_pool: MySqlPool,
         convert_number: i32,
         logged_users_collection: LoggedUserCollection,
         logger_sender: LoggerSender,

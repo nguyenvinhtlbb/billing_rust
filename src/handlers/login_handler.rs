@@ -4,11 +4,11 @@ use crate::common::{
 use crate::log_message;
 use crate::services;
 use async_trait::async_trait;
-use mysql_async::Pool;
+use sqlx::MySqlPool;
 use std::str;
 
 pub struct LoginHandler {
-    db_pool: Pool,
+    db_pool: MySqlPool,
     auto_reg: bool,
     logged_users_collection: LoggedUserCollection,
     logger_sender: LoggerSender,
@@ -16,7 +16,7 @@ pub struct LoginHandler {
 
 impl LoginHandler {
     pub fn new(
-        db_pool: Pool,
+        db_pool: MySqlPool,
         auto_reg: bool,
         logged_users_collection: LoggedUserCollection,
         logger_sender: LoggerSender,

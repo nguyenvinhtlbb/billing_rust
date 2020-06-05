@@ -24,13 +24,19 @@ pub async fn run_server(server_config: BillConfig, mut logger_sender: LoggerSend
     };
     //连接数据库
     log_message!(logger_sender, Info, "Connecting to database...");
-    let db_pool = services::create_db_pool(&server_config);
+    let db_pool = match services::create_db_pool(&server_config).await {
+        Ok(value) => value,
+        Err(err) => {
+            log_message!(logger_sender, Error, "create database pool error, {}", err);
+            return;
+        }
+    };
     match services::get_db_version(&db_pool).await {
         Ok(value) => {
             log_message!(logger_sender, Info, "mysql version: {}", value);
         }
         Err(err) => {
-            log_message!(logger_sender, Error, "Database Error: {}", err);
+            log_message!(logger_sender, Error, "Database Error, {}", err);
             return;
         }
     };
@@ -56,7 +62,5 @@ pub async fn run_server(server_config: BillConfig, mut logger_sender: LoggerSend
         }
     }
     //释放数据库连接池
-    if let Err(err) = db_pool.disconnect().await {
-        log_message!(logger_sender, Info, "free database error: {}", err);
-    }
+    db_pool.close().await;
 }

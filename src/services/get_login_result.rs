@@ -1,12 +1,12 @@
 use crate::models::Account;
-use mysql_async::Pool;
+use sqlx::MySqlPool;
 
 /// 获取登录结果
 pub async fn get_login_result(
-    db_pool: &Pool,
+    db_pool: &MySqlPool,
     username: &str,
     password: &str,
-) -> Result<u8, mysql_async::error::Error> {
+) -> Result<u8, sqlx::Error> {
     match Account::get_by_username(db_pool, username).await? {
         //用户账号不存在
         None => Ok(9),

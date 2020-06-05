@@ -1,6 +1,6 @@
 use crate::common::{BillConfig, LoggerSender};
 use crate::log_message;
-use mysql_async::Pool;
+use sqlx::MySqlPool;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::stream::StreamExt;
@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 /// 接受TCP连接
 pub(super) async fn accept_connection(
     mut listener: TcpListener,
-    db_pool: &Pool,
+    db_pool: &MySqlPool,
     server_config: BillConfig,
     close_sender: Sender<u8>,
     mut logger_sender: LoggerSender,

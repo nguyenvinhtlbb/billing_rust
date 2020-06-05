@@ -4,7 +4,7 @@ use crate::handlers::{
     KeepHandler, KickHandler, LoginHandler, LogoutHandler, PingHandler, QueryPointHandler,
     RegisterHandler,
 };
-use mysql_async::Pool;
+use sqlx::MySqlPool;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
@@ -24,7 +24,7 @@ macro_rules! add_handler {
 pub(super) fn make_handlers(
     server_config: &BillConfig,
     close_sender: &Sender<u8>,
-    db_pool: &Pool,
+    db_pool: &MySqlPool,
     stopped_flag: &Arc<RwLock<bool>>,
     logger_sender: &LoggerSender,
 ) -> HashMap<u8, Box<dyn BillingHandler>> {
