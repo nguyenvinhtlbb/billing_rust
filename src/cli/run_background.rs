@@ -1,7 +1,9 @@
 use crate::common::LoggerSender;
 use crate::log_message;
 use std::process::Stdio;
-use tokio::process::Command;
+use std::process::Command;
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 /// 使程序在后台运行
 pub async fn run_background(exe_path: &str, mut logger_sender: LoggerSender) {
