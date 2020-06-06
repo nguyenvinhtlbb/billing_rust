@@ -1,6 +1,6 @@
 use crate::common::BillConfig;
 use sqlx::MySqlPool;
-use tokio::time::Duration;
+use std::time::Duration;
 
 /// 创建数据库连接池
 pub async fn create_db_pool(server_config: &BillConfig) -> Result<MySqlPool, sqlx::Error> {
@@ -14,8 +14,8 @@ pub async fn create_db_pool(server_config: &BillConfig) -> Result<MySqlPool, sql
     );
     MySqlPool::builder()
         .connect_timeout(Duration::from_secs(10))
-        .max_size(10)
-        .max_size(100)
+        .min_size(10)
+        //.max_size(100)
         .idle_timeout(Duration::from_secs(5 * 60))
         .max_lifetime(Duration::from_secs(30 * 60))
         .build(&conn_string)
