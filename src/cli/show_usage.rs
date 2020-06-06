@@ -3,7 +3,7 @@ pub fn show_usage() {
     let command_name = "billing.exe";
     #[cfg(not(windows))]
     let command_name = "./billing";
-    print!(
+    println!(
         "liuguang's billing server
 build by {}
 Git Commit: {:.7}

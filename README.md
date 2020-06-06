@@ -1,6 +1,6 @@
 # billing_rust
 
-这是一个用rust语言编写的billing验证服务器。
+这是一个用rust语言编写的billing验证服务器，[点击这里](https://github.com/liuguangw/billing_rust/releases)下载我发布的版本。
 
 ## 编译方法
 
@@ -9,9 +9,9 @@
 cargo build --release
 ```
 
-Linux环境下，编译后的项目会依赖`glibc`, `openssl`库。
+在Linux环境下，编译后的项目会依赖`glibc`库。
 
-当然, 也可以选择使用`musl libc `,将C库静态链接到最终的可执行文件。因为`openssl`的`musl`静态链接比较麻烦,所以推荐使用`docker`容器进行交叉编译，我使用的是[messense/rust-musl-cross](https://github.com/messense/rust-musl-cross) 进行的linux可执行文件的编译。
+当然, 也可以选择使用[musl libc](https://musl.cc/)将C库静态链接到最终的可执行文件。
 
 ```bash
 #musl静态编译命令
@@ -25,9 +25,9 @@ cargo build --target=x86_64-unknown-linux-musl --release
 
 ## 运行环境要求
 
-如果是`musl`版本,则无需任何运行库。
+如果是`musl`版本,则运行的机器无需任何运行库。
 
-不是`musl`的版本,需要`glibc`, `openssl`库。
+不是`musl`的版本,需要`glibc` 库, 一般linux系统等会附带。但是如果目标服务器的`glibc`版本不同,则有可能导致运行出错。
 
 `rust`编译工具只有在编译的时候需要,运行时则不需要.
 

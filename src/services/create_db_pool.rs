@@ -15,7 +15,7 @@ pub async fn create_db_pool(server_config: &BillConfig) -> Result<MySqlPool, sql
     MySqlPool::builder()
         .connect_timeout(Duration::from_secs(10))
         .min_size(10)
-        //.max_size(100)
+        .max_size(100)
         .idle_timeout(Duration::from_secs(5 * 60))
         .max_lifetime(Duration::from_secs(30 * 60))
         .build(&conn_string)
